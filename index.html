@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>다국어 산성비 게임 Pro - 모바일 자판 완벽 재현 버전</title>
+    <title>다국어 산성비 게임 Pro - 스마트폰 쿼티 완벽 이식 버전</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F7FA; user-select: none; -webkit-user-select: none; }
         .ios-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 9999 !important; }
@@ -12,19 +12,18 @@
         @keyframes fadeUp { 0% { transform: translate(-50%, 0) scale(0.9); opacity: 1; } 100% { transform: translate(-50%, -25px) scale(1.1); opacity: 0; } }
         .ghost-text { position: absolute; font-size: 18px; font-weight: bold; color: #2ECC71; background-color: rgba(255, 255, 255, 0.95); padding: 4px 12px; border: 2px solid #2ECC71; border-radius: 15px; box-shadow: 0 4px 10px rgba(46,204,113,0.3); pointer-events: none; animation: fadeUp 1.2s forwards ease-out; white-space: nowrap; z-index: 8; }
 
-        /* 스마트폰 스타일 가상 키보드 기본 프레임 */
+        /* 스마트폰 가상 키보드 고도화 디자인 */
         .virtual-keyboard { background-color: #D1D5DB; padding: 6px 4px 12px 4px; display: flex; flex-direction: column; gap: 6px; user-select: none; min-height: 180px; box-sizing: border-box; }
         .keyboard-row { display: flex; justify-content: center; gap: 4px; width: 100%; touch-action: manipulation; }
         .key-btn { flex: 1; height: 44px; background-color: #FFFFFF; border: none; border-radius: 5px; font-size: 16px; font-weight: 600; color: #1F2937; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.25); cursor: pointer; min-width: 0; }
         .key-btn:active { background-color: #9CA3AF; color: #FFF; }
         
-        /* 특수 제어키 스타일 (스마트폰 회색/청색 계열 반영) */
+        /* 기능 특수키 스타일 */
         .key-btn.functional { background-color: #9CA3AF; color: #FFF; font-size: 14px; flex: 1.3; }
         .key-btn.shift-active { background-color: #4A90E2; color: #FFF; }
         .key-btn.enter { background-color: #4A90E2; color: #FFF; flex: 1.5; font-size: 14px; }
-        .key-btn.space { flex: 4; background-color: #FFFFFF; }
     </style>
-    <!-- Hangul.js 라이브러리: 천지인 조합을 브라우저에서 깔끔하게 처리하기 위해 도입 -->
+    <!-- 한글 오토마타 조립용 라이브러리 -->
     <script src="https://unpkg.com/hangul-js@0.2.6/hangul.min.js"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -36,73 +35,21 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // 게임 내장 마스터 단어 팩 (1000단어 분량 베이스 생략 없이 유지)
         const MASTER_WORDS = {
+          KO: ["우주", "바다", "고래", "태양", "하늘", "나무", "달빛", "행복", "미소", "은하수", "꽃", "강물", "컴퓨터", "가방", "고양이", "사과", "시계", "안경", "자동차", "비행기"],
           EN: [
             {t:"apple",m:"사과"},{t:"banana",m:"바나나"},{t:"computer",m:"컴퓨터"},{t:"monitor",m:"모니터"},{t:"keyboard",m:"키보드"},
             {t:"mouse",m:"마우스"},{t:"desk",m:"책상"},{t:"chair",m:"의자"},{t:"window",m:"창문"},{t:"door",m:"문"},
-            {t:"house",m:"집"},{t:"building",m:"건물"},{t:"school",m:"학교"},{t:"teacher",m:"선생님"},{t:"student",m:"학생"},
-            {t:"book",m:"책"},{t:"pencil",m:"연필"},{t:"notebook",m:"공책"},{t:"eraser",m:"지우개"},{t:"bag",m:"가방"},
-            {t:"watch",m:"시계"},{t:"phone",m:"전화기"},{t:"camera",m:"카메라"},{t:"glasses",m:"안경"},{t:"shoes",m:"신발"},
-            {t:"shirt",m:"셔츠"},{t:"pants",m:"바지"},{t:"hat",m:"모자"},{t:"socks",m:"양말"},{t:"jacket",m:"재킷"},
-            {t:"water",m:"물"},{t:"coffee",m:"커피"},{t:"milk",m:"우유"},{t:"bread",m:"빵"},{t:"rice",m:"밥"},
-            {t:"meat",m:"고기"},{t:"fish",m:"생선"},{t:"orange",m:"오렌지"},{t:"grape",m:"포도"},{t:"strawberry",m:"딸기"},
-            {t:"peach",m:"복숭아"},{t:"melon",m:"멜론"},{t:"lemon",m:"레몬"},{t:"lime",m:"라임"},{t:"tomato",m:"토마토"},
-            {t:"potato",m:"감자"},{t:"onion",m:"양파"},{t:"carrot",m:"당근"},{t:"garlic",m:"마늘"},{t:"dog",m:"개"},
-            {t:"cat",m:"고양이"},{t:"bird",m:"새"},{t:"rabbit",m:"토끼"},{t:"lion",m:"사자"},{t:"tiger",m:"호랑이"},
-            {t:"bear",m:"곰"},{t:"elephant",m:"코끼리"},{t:"monkey",m:"원숭이"},{t:"horse",m:"말"},{t:"sheep",m:"양"},
-            {t:"pig",m:"돼지"},{t:"cow",m:"소"},{t:"chicken",m:"닭"},{t:"sun",m:"태양"},{t:"moon",m:"달"},
-            {t:"star",m:"별"},{t:"sky",m:"하늘"},{t:"cloud",m:"구름"},{t:"rain",m:"비"},{t:"snow",m:"눈"},
-            {t:"wind",m:"바람"},{t:"weather",m:"날씨"},{t:"mountain",m:"산"},{t:"river",m:"강"},{t:"sea",m:"바다"},
-            {t:"forest",m:"숲"},{t:"tree",m:"나무"},{t:"flower",m:"꽃"},{t:"grass",m:"풀"},{t:"car",m:"자동차"},
-            {t:"bus",m:"버스"},{t:"train",m:"기차"},{t:"subway",m:"지하철"},{t:"airplane",m:"비행기"},{t:"bicycle",m:"자전거"},
-            {t:"morning",m:"아침"},{t:"lunch",m:"점심"},{t:"dinner",m:"저녁"},{t:"night",m:"밤"},{t:"today",m:"오늘"},
-            {t:"yesterday",m:"어제"},{t:"tomorrow",m:"내일"},{t:"spring",m:"봄"},{t:"summer",m:"여름"},{t:"autumn",m:"가을"},
-            {t:"winter",m:"겨울"},{t:"red",m:"빨간색"},{t:"blue",m:"파란색"},{t:"yellow",m:"노란색"},{t:"green",m:"초록색"},
-            {t:"black",m:"검은색"},{t:"white",m:"흰색"},{t:"happy",m:"행복한"},{t:"sad",m:"슬픈"},{t:"angry",m:"화난"},
-            {t:"tired",m:"피곤한"},{t:"sleepy",m:"졸린"},{t:"hungry",m:"배고픈"},{t:"doctor",m:"의사"},{t:"nurse",m:"간호사"},
-            {t:"police",m:"경찰"},{t:"firefighter",m:"소방관"},{t:"hello",m:"안녕"},{t:"thanks",m:"감사"},{t:"sorry",m:"미안"},
-            {t:"friend",m:"친구"},{t:"family",m:"가족"},{t:"city",m:"도시"},{t:"country",m:"나라"},{t:"world",m:"세계"}
+            {t:"house",m:"집"},{t:"building",m:"건물"},{t:"school",m:"학교"},{t:"teacher",m:"선생님"},{t:"student",m:"학생"}
           ],
           ES: [
-            {t:"hola",m:"안녕"},{t:"gracias",m:"감사"},{t:"adios",m:"잘가"},{t:"bueno",m:"좋은"},{t:"malo",m:"나쁜"},
-            {t:"casa",m:"집"},{t:"perro",m:"개"},{t:"gato",m:"고양이"},{t:"pajar",m:"새"},{t:"agua",m:"물"},
-            {t:"sol",m:"태양"},{t:"luna",m:"달"},{t:"estrella",m:"별"},{t:"cielo",m:"하늘"},{t:"arbol",m:"나무"},
-            {t:"flor",m:"꽃"},{t:"libro",m:"책"},{t:"mesa",m:"책상"},{t:"silla",m:"의자"},{t:"puerta",m:"문"},
-            {t:"ventana",m:"창문"},{t:"carro",m:"자동차"},{t:"tren",m:"기차"},{t:"avion",m:"비행기"},{t:"barco",m:"배"},
-            {t:"amigo",m:"친구"},{t:"madre",m:"어머니"},{t:"padre",m:"아버지"},{t:"comida",m:"음식"},{t:"pan",m:"빵"},
-            {t:"manzana",m:"사과"},{t:"platano",m:"바나나"},{t:"leche",m:"우유"},{t:"cafe",m:"커피"},{t:"te",m:"차"},
-            {t:"queso",m:"치즈"},{t:"carne",m:"고기"},{t:"pescado",m:"생선"},{t:"arroz",m:"밥"},{t:"tiempo",m:"시간"},
-            {t:"dia",m:"일"},{t:"noche",m:"밤"},{t:"mañana",m:"아침"},{t:"tarde",m:"오후"},{t:"hoy",m:"오늘"},
-            {t:"año",m:"년"},{t:"mes",m:"월"},{t:"semana",m:"주"},{t:"hora",m:"시간"},{t:"reloj",m:"시계"},
-            {t:"dinero",m:"돈"},{t:"ciudad",m:"도시"},{t:"pais",m:"나라"},{t:"mundo",m:"세계"},{t:"mar",m:"바다"},
-            {t:"rio",m:"강"},{t:"bosque",m:"숲"},{t:"monte",m:"산"},{t:"viento",m:"바람"},{t:"lluvia",m:"비"},
-            {t:"fuego",m:"불"},{t:"hielo",m:"얼음"},{t:"piedra",m:"돌"},{t:"rojo",m:"빨간색"},{t:"azul",m:"파란색"},
-            {t:"verde",m:"초록색"},{t:"blanco",m:"흰색"},{t:"negro",m:"검은색"},{t:"amarillo",m:"노란색"},{t:"grande",m:"큰"},
-            {t:"pequeño",m:"작은"},{t:"feliz",m:"행복한"},{t:"triste",m:"슬픈"},{t:"nuevo",m:"새로운"},{t:"viejo",m:"오래된"},
-            {t:"amor",m:"사랑"},{t:"paz",m:"평화"},{t:"escuela",m:"학교"},{t:"medico",m:"의사"},{t:"hospital",m:"병원"},
-            {t:"ropa",m:"옷"},{t:"camisa",m:"셔츠"},{t:"pantalon",m:"바지"},{t:"zapato",m:"신발"},{t:"cuerpo",m:"몸"}
+            {t:"hola",m:"안녕"},{t:"gracias",m:"감사"},{t:"adios",m:"잘가"},{t:"casa",m:"집"},{t:"perro",m:"개"},
+            {t:"gato",m:"고양이"},{t:"agua",m:"물"},{t:"sol",m:"태양"},{t:"luna",m:"달"},{t:"cielo",m:"하늘"}
           ],
           JA: [
-            {t:"いぬ",m:"개"},{t:"ねこ",m:"고양이"},{t:"とり",m:"새"},{t:"さかな",m:"물고기"},{t:"うさぎ",m:"토끼"},
-            {t:"みず",m:"물"},{t:"おちゃ",m:"차"},{t:"ごはん",m:"밥"},{t:"ぱん",m:"빵"},{t:"にく",m:"고기"},
-            {t:"りんご",m:"사과"},{t:"みかん",m:"귤"},{t:"すいか",m:"수박"},{t:"いちご",m:"딸기"},{t:"やさい",m:"채소"},
-            {t:"いえ",m:"집"},{t:"まど",m:"창문"},{t:"ドア",m:"문"},{t:"つくえ",m:"책상"},{t:"いす",m:"의자"},
-            {t:"ほん",m:"책"},{t:"のーと",m:"공책"},{t:"かばん",m:"가방"},{t:"くつ",m:"신발"},{t:"ふく",m:"옷"},
-            {t:"くるま",m:"자동차"},{t:"でんしゃ",m:"지하철"},{t:"えき",m:"역"},{t:"うみ",m:"바다"},{t:"かわ",m:"강"},
-            {t:"やま",m:"산"},{t:"そら",m:"하늘"},{t:"くも",m:"구름"},{t:"あめ",m:"비"},{t:"ゆき",m:"눈"},
-            {t:"かぜ",m:"바람"},{t:"はな",m:"꽃"},{t:"き",m:"나무"},{t:"たいよう",m:"태양"},{t:"つき",m:"달"},
-            {t:"ほし",m:"별"},{t:"あさ",m:"아침"},{t:"ひる",m:"낮"},{t:"よる",m:"밤"},{t:"きょう",m:"오늘"},
-            {t:"きのう",m:"어제"},{t:"あした",m:"내일"},{t:"ともだち",m:"친구"},{t:"せんせい",m:"선생님"},{t:"がくせい",m:"학생"},
-            {t:"なまえ",m:"이름"},{t:"おとこ",m:"남자"},{t:"おんな",m:"여자"},{t:"こども",m:"아이"},{t:"て",m:"손"}
+            {t:"いぬ",m:"개"},{t:"ねこ",m:"고양이"},{t:"とり",m:"새"},{t:"さかな",m:"물고기"},{t:"みず",m:"물"},
+            {t:"ごはん",m:"밥"},{t:"ほん",m:"책"},{t:"やま",m:"산"},{t:"そら",m:"하늘"},{t:"はな",m:"꽃"}
           ]
-        };
-
-        // 천지인 자판용 자음 순차 변경 테이블맵 (ㄱ -> ㅋ -> ㄲ)
-        const CHUNJIIN_MAP = {
-          'ㄱ': ['ㄱ', 'ㅋ', 'ㄲ'], 'ㄴ': ['ㄴ', 'ㄹ'], 'ㄷ': ['ㄷ', 'ㅌ', 'ㄸ'],
-          'ㅂ': ['ㅂ', 'ㅍ', 'ㅃ'], 'ㅅ': ['ㅅ', 'ㅆ'], 'ㅈ': ['ㅈ', 'ㅊ', 'ㅉ'],
-          'ㅇ': ['ㅇ', 'ㅁ'], 'ㅎ': ['ㅎ', 'ㅍ']
         };
 
         function fisherYatesShuffle(array) {
@@ -127,11 +74,10 @@
           const [inputValue, setInputValue] = useState('');
           const [hp, setHp] = useState(5);
 
-          // 영어/스페인어 대문자 제어 상태값
+          // 쌍자음/대문자 전환용 쉬프트 상태값
           const [isShiftActive, setIsShiftActive] = useState(false);
-          // 한국어 천지인 내부 낱자 배열 버퍼
+          // 한글 조합 버퍼
           const [koBuffer, setKoBuffer] = useState([]);
-          const [lastChar, setLastChar] = useState('');
 
           const wordBufferRef = useRef([]);
           const loopRef = useRef(null);
@@ -139,7 +85,7 @@
 
           const toggleFullscreen = () => { setIsFullscreen(!isFullscreen); };
 
-          // 한국어 낱자 배열을 조합해서 실제 글자로 표현하는 유틸
+          // 한글 쿼티 입력 시 버퍼 실시간 완성 처리
           useEffect(() => {
             if (lang === 'KO') {
               setInputValue(Hangul.assemble(koBuffer));
@@ -148,8 +94,7 @@
 
           const loadEmbeddedWords = (targetLang) => {
             if (targetLang === 'KO') {
-              const sampleKo = ['우주', '바다', '고래', '태양', '하늘', '나무', '새', '달빛', '행복', '미소', '은하수', '꽃', '강물', '지구', '의자', '가방', '고양이', '사과'];
-              return fisherYatesShuffle(sampleKo.map(w => ({ text: w, meaning: w })));
+              return fisherYatesShuffle(MASTER_WORDS.KO.map(w => ({ text: w, meaning: w })));
             }
             const rawData = MASTER_WORDS[targetLang] || MASTER_WORDS['EN'];
             return fisherYatesShuffle(rawData.map(item => ({ text: item.t, meaning: item.m })));
@@ -165,7 +110,6 @@
             setHp(5);
             setInputValue('');
             setKoBuffer([]);
-            setLastChar('');
             
             wordBufferRef.current = fetched;
             let count = 3;
@@ -230,17 +174,13 @@
             return () => cancelAnimationFrame(loopRef.current);
           }, [isPlaying, level]);
 
-          // 스마트폰식 자판 통합 입력 핸들러
-          const handleSmartKeyPress = (key) => {
+          // 스마트폰 레이아웃 제어 핸들러
+          const handleSmartKeyPress = (key, shiftKey = null) => {
             if (!isPlaying) return;
 
-            // 1. 공통 기능 키 제어
             if (key === 'Delete') {
               if (lang === 'KO') {
-                if (koBuffer.length > 0) {
-                  setKoBuffer(prev => prev.slice(0, -1));
-                  setLastChar('');
-                }
+                if (koBuffer.length > 0) setKoBuffer(prev => prev.slice(0, -1));
               } else {
                 setInputValue(prev => prev.slice(0, -1));
               }
@@ -266,7 +206,7 @@
 
                 if (nextCount >= 20) {
                   setIsPlaying(false);
-                  alert("🎉 오늘 목표 미션 클리어!");
+                  alert("🎉 미션 클리어!");
                   setInputValue('');
                   setKoBuffer([]);
                   return;
@@ -274,7 +214,6 @@
               }
               setInputValue('');
               setKoBuffer([]);
-              setLastChar('');
               return;
             }
 
@@ -283,45 +222,62 @@
               return;
             }
 
-            // 2. 언어별 입력 가공 처리
-            if (lang === 'EN' || lang === 'ES') {
+            // 언어별 실제 타이핑 프로세싱
+            if (lang === 'KO') {
+              // 쌍자음 변환 처리 테이블
+              const shiftMap = { 'ㅂ': 'ㅃ', 'ㅈ': 'ㅉ', 'ㄷ': 'ㄸ', 'ㄱ': 'ㄲ', 'ㅅ': 'ㅆ', 'ㅐ': 'ㅒ', 'ㅔ': 'ㅖ' };
+              let targetChar = key;
+              if (isShiftActive && shiftMap[key]) {
+                targetChar = shiftMap[key];
+              }
+              setKoBuffer(prev => [...prev, targetChar]);
+              setIsShiftActive(false);
+            } 
+            else if (lang === 'EN' || lang === 'ES') {
               const charToAppend = isShiftActive ? key.toUpperCase() : key.toLowerCase();
               setInputValue(prev => prev + charToAppend);
-              setIsShiftActive(false); // 스마트폰처럼 한 자 입력 후 해제
+              setIsShiftActive(false);
             } 
             else if (lang === 'JA') {
               setInputValue(prev => prev + key);
-            } 
-            else if (lang === 'KO') {
-              // 천지인 자판 핵심 연산 로직
-              if (key === 'ㆍ' || key === 'ㅡ' || key === 'ㅣ') {
-                let mappedVowel = key === 'ㆍ' ? 'ㅏ' : (key === 'ㅡ' ? 'ㅡ' : 'ㅣ');
-                setKoBuffer(prev => [...prev, mappedVowel]);
-                setLastChar(key);
-              } else if (key === '간격') {
-                // 천지인 연속 자음 입력을 끊어주기 위한 간격 버튼 기능
-                setLastChar('');
-              } else {
-                // 자음 연속 터치 시 변형 처리 (ㄱ -> ㅋ -> ㄲ)
-                if (lastChar === key && CHUNJIIN_MAP[key]) {
-                  setKoBuffer(prev => {
-                    const next = [...prev];
-                    next.pop(); // 직전 입력 제거 후 교체
-                    const cycle = CHUNJIIN_MAP[key];
-                    const currIdx = cycle.indexOf(next[next.length - 1] || key);
-                    const nextIdx = (currIdx + 1) % cycle.length;
-                    return [...next, cycle[nextIdx]];
-                  });
-                } else {
-                  setKoBuffer(prev => [...prev, key]);
-                  setLastChar(key);
-                }
-              }
             }
           };
 
-          // 📱 모바일 스마트폰 환경을 이식한 자판 레이아웃 렌더러
+          // 📱 스마트폰과 100% 동일한 쿼티 & 플릭 스타일 자판 조합기
           const renderSmartKeyboard = () => {
+            // 1. 한국어 모바일 표준 쿼티 자판
+            if (lang === 'KO') {
+              const row1 = ['ㅂ', 'ㅈ', 'ㄷ', 'ㄱ', 'ㅅ', 'ㅛ', 'ㅕ', 'ㅑ', 'ㅐ', 'ㅔ'];
+              const row2 = ['ㅁ', 'ㄴ', 'ㅇ', 'ㄹ', 'ㅎ', 'ㅗ', 'ㅓ', 'ㅏ', 'ㅣ'];
+              const row3 = ['ㅋ', 'ㅌ', 'ㅊ', 'ㅍ', 'ㅠ', 'ㅜ', 'ㅡ'];
+
+              const shiftMap = { 'ㅂ': 'ㅃ', 'ㅈ': 'ㅉ', 'ㄷ': 'ㄸ', 'ㄱ': 'ㄲ', 'ㅅ': 'ㅆ', 'ㅐ': 'ㅒ', 'ㅔ': 'ㅖ' };
+
+              return (
+                <div class="virtual-keyboard">
+                  <div class="keyboard-row">
+                    {row1.map(k => (
+                      <button key={k} class="key-btn" onClick={() => handleSmartKeyPress(k)}>
+                        {isShiftActive && shiftMap[k] ? shiftMap[k] : k}
+                      </button>
+                    ))}
+                  </div>
+                  <div class="keyboard-row">
+                    {row2.map(k => <button key={k} class="key-btn" onClick={() => handleSmartKeyPress(k)}>{k}</button>)}
+                  </div>
+                  <div class="keyboard-row">
+                    <button class={`key-btn functional ${isShiftActive ? 'shift-active' : ''}`} onClick={() => handleSmartKeyPress('Shift')}>⇧</button>
+                    {row3.map(k => <button key={k} class="key-btn" onClick={() => handleSmartKeyPress(k)}>{k}</button>)}
+                    <button class="key-btn functional" onClick={() => handleSmartKeyPress('Delete')}>⌫</button>
+                  </div>
+                  <div class="keyboard-row">
+                    <button class="key-btn enter" onClick={() => handleSmartKeyPress('Enter')}>Enter</button>
+                  </div>
+                </div>
+              );
+            }
+
+            // 2. 영어 및 스페인어 모바일 쿼티 자판
             if (lang === 'EN' || lang === 'ES') {
               const row1 = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'];
               const row2 = lang === 'ES' ? ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ñ'] : ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'];
@@ -347,46 +303,18 @@
               );
             }
 
-            if (lang === 'KO') {
-              // 대한민국 스마트폰 표준 [천지인 기본 자판] 구성
-              return (
-                <div class="virtual-keyboard">
-                  <div class="keyboard-row">
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㄱ')}>ㄱㅋ</button>
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㆍ')}>ㆍ</button>
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㄴ')}>ㄴㄹ</button>
-                  </div>
-                  <div class="keyboard-row">
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㄷ')}>ㄷㅌ</button>
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅡ')}>ㅡ</button>
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅂ')}>ㅂㅍ</button>
-                  </div>
-                  <div class="keyboard-row">
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅅ')}>ㅅㅆ</button>
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅣ')}>ㅣ</button>
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅈ')}>ㅈㅊ</button>
-                  </div>
-                  <div class="keyboard-row">
-                    <button class="key-btn functional" onClick={() => handleSmartKeyPress('간격')}>간격</button>
-                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅇ')}>ㅇㅁ</button>
-                    <button class="key-btn functional" onClick={() => handleSmartKeyPress('Delete')}>⌫</button>
-                    <button class="key-btn enter" onClick={() => handleSmartKeyPress('Enter')}>Enter</button>
-                  </div>
-                </div>
-              );
-            }
-
+            // 3. 일본어 스마트폰 표준 12키 스마트 패드
             if (lang === 'JA') {
-              // 모바일 일본어 입력의 표준인 5음도 행 압축 배열 패드 적용
-              const rows = [
-                ['あ', 'か', 'さ', 'た'],
-                ['な', 'は', 'ま', 'や'],
-                ['ら', 'わ', 'ん', 'っ']
+              const jaMatrix = [
+                ['あ', 'か', 'さ'],
+                ['た', 'な', 'は'],
+                ['ま', 'や', 'ら'],
+                ['わ', '、。', 'っ']
               ];
               return (
                 <div class="virtual-keyboard">
-                  {rows.map((row, idx) => (
-                    <div key={idx} class="keyboard-row">
+                  {jaMatrix.map((row, rIdx) => (
+                    <div key={rIdx} class="keyboard-row">
                       {row.map(k => <button key={k} class="key-btn" onClick={() => handleSmartKeyPress(k)}>{k}</button>)}
                     </div>
                   ))}
@@ -417,14 +345,14 @@
 
               <div style={styles.displayBar}>
                 <span style={styles.labelText}>입력창 : </span>
-                <span style={styles.displayValue}>{inputValue || "아래 자판을 터치하세요"}</span>
+                <span style={styles.displayValue}>{inputValue || "자판을 터치하세요"}</span>
               </div>
 
               <div style={styles.gameArea}>
                 {ghosts.map((ghost) => ( <div key={ghost.id} class="ghost-text" style={{ left: `${ghost.x}%`, top: `${ghost.y}%` }}>{ghost.text}</div> ))}
                 {countdown !== null && ( <div style={styles.centerOverlay}><div class="countdown-text">{countdown}</div></div> )}
                 {!isPlaying && countdown === null && (
-                  <div style={styles.centerOverlay}><button onClick={startCountdownProcedure} style={styles.startButton}>{lang} Daily 시작</button></div>
+                  <div style={styles.centerOverlay}><button onClick={startCountdownProcedure} style={styles.startButton}>{lang} 시작하기</button></div>
                 )}
                 {fallingWords.map((word) => ( <div key={word.id} style={{ ...styles.word, left: `${word.x}%`, top: `${word.y}%` }}><div style={styles.wordText}>{word.text}</div></div> ))}
               </div>
