@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <!-- 모바일 입력 시 화면 확대(Zoom) 방지 및 최적화 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>다국어 산성비 게임</title>
+    
+    <!-- React 및 Babel 라이브러리 로드 (별도 빌드 없이 실행 가능하게 함) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F7FA; }
+    </style>
+</head>
+<body>
+
+    <div id="root"></div>
+
+    <!-- Babel을 이용해 브라우저에서 JSX 바로 실행 -->
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const WORD_DATABASE = {
+          KO: ['사과', '바나나', '컴퓨터', '하늘', '소나기', '고양이', '자동차', '한국어', '개발자', '스마트폰'],
+          EN: ['apple', 'banana', 'computer', 'sky', 'shower', 'cat', 'car', 'language', 'developer', 'smartphone'],
+          JA: ['りんご', 'ねこ', 'くるま', 'そら', 'すいか', 'さくら', 'ほん', 'みず', 'ともだ치', 'せんせい'],
+          ES: ['manzana', 'gato', 'coche', 'cielo', 'lluvia', 'agua', 'amigo', 'sol', 'luna', 'computadora']
+        };
+
+        function LanguageRainGame() {
+          const [lang, setLang] = useState('KO');
+          const [level, setLevel] = useState(() => Number(localStorage.getItem('rain_game_lvl')) || 1);
+          const [exp, setExp] = useState(() => Number(localStorage.getItem('rain_game_exp')) || 0);
+          const [score, setScore] = useState(0);
+          const [isPlaying, setIsPlaying] = useState(false);
+          const [fallingWords, setFallingWords] = useState([]);
+          const [inputValue, setInputValue] = useState('');
+          const [hp, setHp] = useState(5);
+
+          const gameAreaRef = useRef(null);
+          const loopRef = useRef(null);
+          const spawnRef = useRef(null);
+
+          const expToNextLevel = level * 100;
+
+          useEffect(() => {
+            localStorage.setItem('rain_game_lvl', level);
+            localStorage.setItem('rain_game_exp', exp);
+          }, [level, exp]);
+
+          const startGame = () => {
+            setFallingWords([]);
+            setScore(0);
+            setHp(5);
+            setIsPlaying(true);
+            setInputValue('');
+          };
+
+          const gameOver = () => {
+            setIsPlaying(false);
+            alert(`게임 오버! 최종 점수: ${score}`);
+          };
+
+          useEffect(() => {
+            if (!isPlaying) return;
+
+            const spawnWord = () => {
+              const wordList = WORD_DATABASE[lang];
+              const randomWord = wordList[Math.floor(Math.random() * wordList.length)];
+              const randomX = Math.floor(Math.random() * 80) + 10; 
+
+              setFallingWords((prev) => [
+                ...prev,
+                { id: Date.now() + Math.random(), text: randomWord, x: randomX, y: 0 }
+              ]);
+            };
+
+            const spawnInterval = Math.max(1000, 3000 - level * 200);
+            spawnRef.current = setInterval(spawnWord, spawnInterval);
+
+            return () => clearInterval(spawnRef.current);
+          }, [isPlaying, lang, level]);
+
+          useEffect(() => {
+            if (!isPlaying) return;
+
+            const updatePosition = () => {
+              setFallingWords((prev) => {
+                const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.5 + level * 0.1) })); 
+                const escaped = nextWords.filter((w) => w.y >= 90);
+                if (escaped.length > 0) {
+                  setHp((currHp) => {
+                    const updatedHp = currHp - escaped.length;
+                    if (updatedHp <= 0) {
+                      gameOver();
+                      return 0;
+                    }
+                    return updatedHp;
+                  });
+                }
+                return nextWords.filter((w) => w.y < 90);
+              });
+              loopRef.current = requestAnimationFrame(updatePosition);
+            };
+
+            loopRef.current = requestAnimationFrame(updatePosition);
+            return () => cancelAnimationFrame(loopRef.current);
+          }, [isPlaying, level]);
+
+          const handleKeyDown = (e) => {
+            if (e.key === 'Enter') {
+              if (e.nativeEvent.isComposing) return; 
+
+              const trimmedInput = inputValue.trim();
+              const targetIndex = fallingWords.findIndex((w) => w.text === trimmedInput);
+
+              if (targetIndex !== -1) {
+                setFallingWords((prev) => prev.filter((_, idx) => idx !== targetIndex));
+                setScore((prev) => prev + 10);
+                setExp((prevExp) => {
+                  let newExp = prevExp + 20;
+                  if (newExp >= expToNextLevel) {
+                    newExp -= expToNextLevel;
+                    setLevel((lvl) => lvl + 1);
+                  }
+                  return newExp;
+                });
+              }
+              setInputValue('');
+            }
+          };
+
+          return (
+            <div style={styles.container}>
+              <div style={styles.header}>
+                <div>Lv. {level}</div>
+                <div style={styles.expBarContainer}>
+                  <div style={{ ...styles.expBar, width: `${(exp / expToNextLevel) * 100}%` }} />
+                </div>
+                <div>HP: {'❤️'.repeat(hp)}</div>
+                <div>Score: {score}</div>
+              </div>
+
+              <div style={styles.langTabs}>
+                {['KO', 'EN', 'JA', 'ES'].map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => { setLang(l); startGame(); }}
+                    style={{ ...styles.tabButton, backgroundColor: lang === l ? '#4A90E2' : '#E0E0E0' }}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+
+              <div ref={gameAreaRef} style={styles.gameArea}>
+                {!isPlaying && (
+                  <div style={styles.startOverlay}>
+                    <button onClick={startGame} style={styles.startButton}>게임 시작</button>
+                  </div>
+                )}
+                {fallingWords.map((word) => (
+                  <div key={word.id} style={{ ...styles.word, left: `${word.x}%`, top: `${word.y}%` }}>
+                    {word.text}
+                  </div>
+                ))}
+              </div>
+
+              <div style={styles.inputArea}>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={isPlaying ? "단어 입력 후 엔터!" : "언어 선택 후 시작"}
+                  disabled={!isPlaying}
+                  style={styles.input}
+                />
+              </div>
+            </div>
+          );
+        }
+
+        const styles = {
+          container: { display: 'flex', flexDirection: 'column', width: '100vw', height: '100dvh', fontFamily: 'sans-serif', overflow: 'hidden' },
+          header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: '#2C3E50', color: '#FFF', fontSize: '14px' },
+          expBarContainer: { width: '30%', height: '8px', backgroundColor: '#34495E', borderRadius: '4px', overflow: 'hidden' },
+          expBar: { height: '100%', backgroundColor: '#2ECC71', transition: 'width 0.2s ease' },
+          langTabs: { display: 'flex', justifyContent: 'space-around', padding: '10px', backgroundColor: '#FFF', borderBottom: '1px solid #E2E8F0' },
+          tabButton: { padding: '8px 18px', border: 'none', borderRadius: '20px', color: '#FFF', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
+          gameArea: { flex: 1, position: 'relative', backgroundColor: '#EDF2F7', overflow: 'hidden' },
+          startOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+          startButton: { padding: '15px 40px', fontSize: '18px', backgroundColor: '#4A90E2', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' },
+          word: { position: 'absolute', padding: '6px 12px', backgroundColor: '#FFF', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', transform: 'translateX(-50%)', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
+          inputArea: { padding: '15px', backgroundColor: '#FFF', borderTop: '1px solid #E2E8F0' },
+          input: { width: '100%', padding: '14px', fontSize: '16px', borderRadius: '8px', border: '2px solid #CBD5E0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }
+        };
+
+        const root = bankrupt =组件 = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<LanguageRainGame />);
+    </script>
+</body>
+</html>
