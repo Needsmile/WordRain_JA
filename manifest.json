@@ -1,0 +1,17 @@
+{
+  "short_name": "다국어타자",
+  "name": "다국어 산성비 타자 육성 게임",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2893/2893113.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#2C3E50",
+  "theme_color": "#2C3E50",
+  "display": "standalone",
+  "orientation": "portrait"
+}
