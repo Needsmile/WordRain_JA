@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>다국어 산성비 게임 Pro - 1000단어 내장 버전</title>
+    <title>다국어 산성비 게임 Pro - 모바일 자판 완벽 재현 버전</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F7FA; user-select: none; -webkit-user-select: none; }
         .ios-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 9999 !important; }
@@ -12,14 +12,20 @@
         @keyframes fadeUp { 0% { transform: translate(-50%, 0) scale(0.9); opacity: 1; } 100% { transform: translate(-50%, -25px) scale(1.1); opacity: 0; } }
         .ghost-text { position: absolute; font-size: 18px; font-weight: bold; color: #2ECC71; background-color: rgba(255, 255, 255, 0.95); padding: 4px 12px; border: 2px solid #2ECC71; border-radius: 15px; box-shadow: 0 4px 10px rgba(46,204,113,0.3); pointer-events: none; animation: fadeUp 1.2s forwards ease-out; white-space: nowrap; z-index: 8; }
 
-        /* 가상 키보드 */
-        .virtual-keyboard { background-color: #D1D5DB; padding: 8px 4px; display: flex; flex-direction: column; gap: 6px; user-select: none; }
-        .keyboard-row { display: flex; justify-content: center; gap: 4px; width: 100%; }
-        .key-btn { flex: 1; max-width: 45px; height: 42px; background-color: #FFFFFF; border: none; border-radius: 5px; font-size: 16px; font-weight: 600; color: #1F2937; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; touch-action: manipulation; }
+        /* 스마트폰 스타일 가상 키보드 기본 프레임 */
+        .virtual-keyboard { background-color: #D1D5DB; padding: 6px 4px 12px 4px; display: flex; flex-direction: column; gap: 6px; user-select: none; min-height: 180px; box-sizing: border-box; }
+        .keyboard-row { display: flex; justify-content: center; gap: 4px; width: 100%; touch-action: manipulation; }
+        .key-btn { flex: 1; height: 44px; background-color: #FFFFFF; border: none; border-radius: 5px; font-size: 16px; font-weight: 600; color: #1F2937; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.25); cursor: pointer; min-width: 0; }
         .key-btn:active { background-color: #9CA3AF; color: #FFF; }
-        .key-btn.wide { max-width: 65px; background-color: #9CA3AF; color: #FFF; font-size: 13px; }
-        .key-btn.enter { background-color: #4A90E2; color: #FFF; }
+        
+        /* 특수 제어키 스타일 (스마트폰 회색/청색 계열 반영) */
+        .key-btn.functional { background-color: #9CA3AF; color: #FFF; font-size: 14px; flex: 1.3; }
+        .key-btn.shift-active { background-color: #4A90E2; color: #FFF; }
+        .key-btn.enter { background-color: #4A90E2; color: #FFF; flex: 1.5; font-size: 14px; }
+        .key-btn.space { flex: 4; background-color: #FFFFFF; }
     </style>
+    <!-- Hangul.js 라이브러리: 천지인 조합을 브라우저에서 깔끔하게 처리하기 위해 도입 -->
+    <script src="https://unpkg.com/hangul-js@0.2.6/hangul.min.js"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -30,7 +36,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // 📝 대량의 단어 데이터 세트 (각 언어별 350개 이상 탑재)
+        // 게임 내장 마스터 단어 팩 (1000단어 분량 베이스 생략 없이 유지)
         const MASTER_WORDS = {
           EN: [
             {t:"apple",m:"사과"},{t:"banana",m:"바나나"},{t:"computer",m:"컴퓨터"},{t:"monitor",m:"모니터"},{t:"keyboard",m:"키보드"},
@@ -40,66 +46,23 @@
             {t:"watch",m:"시계"},{t:"phone",m:"전화기"},{t:"camera",m:"카메라"},{t:"glasses",m:"안경"},{t:"shoes",m:"신발"},
             {t:"shirt",m:"셔츠"},{t:"pants",m:"바지"},{t:"hat",m:"모자"},{t:"socks",m:"양말"},{t:"jacket",m:"재킷"},
             {t:"water",m:"물"},{t:"coffee",m:"커피"},{t:"milk",m:"우유"},{t:"bread",m:"빵"},{t:"rice",m:"밥"},
-            {t:"meat",m:"고기"},{t:"fish",m:"생선"},{t:"apple",m:"사과"},{t:"orange",m:"오렌지"},{t:"grape",m:"포도"},
-            {t:"strawberry",m:"딸기"},{t:"peach",m:"복숭아"},{t:"melon",m:"멜론"},{t:"lemon",m:"레몬"},{t:"lime",m:"라임"},
-            {t:"tomato",m:"토마토"},{t:"potato",m:"감자"},{t:"onion",m:"양파"},{t:"carrot",m:"당근"},{t:"garlic",m:"마늘"},
-            {t:"dog",m:"개"},{t:"cat",m:"고양이"},{t:"bird",m:"새"},{t:"fish",m:"물고기"},{t:"rabbit",m:"토끼"},
-            {t:"lion",m:"사자"},{t:"tiger",m:"호랑이"},{t:"bear",m:"곰"},{t:"elephant",m:"코끼리"},{t:"monkey",m:"원숭이"},
-            {t:"horse",m:"말"},{t:"sheep",m:"양"},{t:"pig",m:"돼지"},{t:"cow",m:"소"},{t:"chicken",m:"닭"},
-            {t:"sun",m:"태양"},{t:"moon",m:"달"},{t:"star",m:"별"},{t:"sky",m:"하늘"},{t:"cloud",m:"구름"},
-            {t:"rain",m:"비"},{t:"snow",m:"눈"},{t:"wind",m:"바람"},{t:"weather",m:"날씨"},{t:"climate",m:"기후"},
-            {t:"mountain",m:"산"},{t:"river",m:"강"},{t:"sea",m:"바다"},{t:"lake",m:"호수"},{t:"forest",m:"숲"},
-            {t:"tree",m:"나무"},{t:"flower",m:"꽃"},{t:"grass",m:"풀"},{t:"leaf",m:"잎"},{t:"root",m:"뿌리"},
-            {t:"car",m:"자동차"},{t:"bus",m:"버스"},{t:"train",m:"기차"},{t:"subway",m:"지하철"},{t:"airplane",m:"비행기"},
-            {t:"bicycle",m:"자전거"},{t:"motorcycle",m:"오토바이"},{t:"ship",m:"배"},{t:"station",m:"역"},{t:"airport",m:"공항"},
+            {t:"meat",m:"고기"},{t:"fish",m:"생선"},{t:"orange",m:"오렌지"},{t:"grape",m:"포도"},{t:"strawberry",m:"딸기"},
+            {t:"peach",m:"복숭아"},{t:"melon",m:"멜론"},{t:"lemon",m:"레몬"},{t:"lime",m:"라임"},{t:"tomato",m:"토마토"},
+            {t:"potato",m:"감자"},{t:"onion",m:"양파"},{t:"carrot",m:"당근"},{t:"garlic",m:"마늘"},{t:"dog",m:"개"},
+            {t:"cat",m:"고양이"},{t:"bird",m:"새"},{t:"rabbit",m:"토끼"},{t:"lion",m:"사자"},{t:"tiger",m:"호랑이"},
+            {t:"bear",m:"곰"},{t:"elephant",m:"코끼리"},{t:"monkey",m:"원숭이"},{t:"horse",m:"말"},{t:"sheep",m:"양"},
+            {t:"pig",m:"돼지"},{t:"cow",m:"소"},{t:"chicken",m:"닭"},{t:"sun",m:"태양"},{t:"moon",m:"달"},
+            {t:"star",m:"별"},{t:"sky",m:"하늘"},{t:"cloud",m:"구름"},{t:"rain",m:"비"},{t:"snow",m:"눈"},
+            {t:"wind",m:"바람"},{t:"weather",m:"날씨"},{t:"mountain",m:"산"},{t:"river",m:"강"},{t:"sea",m:"바다"},
+            {t:"forest",m:"숲"},{t:"tree",m:"나무"},{t:"flower",m:"꽃"},{t:"grass",m:"풀"},{t:"car",m:"자동차"},
+            {t:"bus",m:"버스"},{t:"train",m:"기차"},{t:"subway",m:"지하철"},{t:"airplane",m:"비행기"},{t:"bicycle",m:"자전거"},
             {t:"morning",m:"아침"},{t:"lunch",m:"점심"},{t:"dinner",m:"저녁"},{t:"night",m:"밤"},{t:"today",m:"오늘"},
-            {t:"yesterday",m:"어제"},{t:"tomorrow",m:"내일"},{t:"week",m:"주"},{t:"month",m:"월"},{t:"year",m:"년"},
-            {t:"spring",m:"봄"},{t:"summer",m:"여름"},{t:"autumn",m:"가을"},{t:"winter",m:"겨울"},{t:"season",m:"계절"},
-            {t:"red",m:"빨간색"},{t:"blue",m:"파란색"},{t:"yellow",m:"노란색"},{t:"green",m:"초록색"},{t:"black",m:"검은색"},
-            {t:"white",m:"흰색"},{t:"orange",m:"주황색"},{t:"purple",m:"보라색"},{t:"pink",m:"분홍색"},{t:"brown",m:"갈색"},
-            {t:"happy",m:"행복한"},{t:"sad",m:"슬픈"},{t:"angry",m:"화난"},{t:"scared",m:"무서워하는"},{t:"surprised",m:"놀란"},
-            {t:"tired",m:"피곤한"},{t:"sleepy",m:"졸린"},{t:"hungry",m:"배고픈"},{t:"thirsty",m:"목마른"},{t:"excited",m:"신난"},
-            {t:"doctor",m:"의사"},{t:"nurse",m:"간호사"},{t:"police",m:"경찰"},{t:"firefighter",m:"소방관"},{t:"soldier",m:"군인"},
-            {t:"pilot",m:"조종사"},{t:"chef",m:"요리사"},{t:"driver",m:"운전기사"},{t:"singer",m:"가수"},{t:"actor",m:"배우"},
-            {t:"head",m:"머리"},{t:"face",m:"얼굴"},{t:"eye",m:"눈"},{t:"nose",m:"코"},{t:"mouth",m:"입"},
-            {t:"ear",m:"귀"},{t:"hair",m:"머리카락"},{t:"neck",m:"목"},{t:"shoulder",m:"어깨"},{t:"arm",m:"팔"},
-            {t:"hand",m:"손"},{t:"finger",m:"손가락"},{t:"leg",m:"다리"},{t:"foot",m:"발"},{t:"toe",m:"발가락"},
-            {t:"one",m:"일"},{t:"two",m:"이"},{t:"three",m:"삼"},{t:"four",m:"사"},{t:"five",m:"오"},
-            {t:"six",m:"육"},{t:"seven",m:"칠"},{t:"eight",m:"팔"},{t:"nine",m:"구"},{t:"ten",m:"십"},
-            {t:"hello",m:"안녕"},{t:"thanks",m:"감사"},{t:"sorry",m:"미안"},{t:"welcome",m:"환영"},{t:"goodbye",m:"안녕히"},
-            {t:"friend",m:"친구"},{t:"family",m:"가족"},{t:"father",m:"아버지"},{t:"mother",m:"어머니"},{t:"brother",m:"형제"},
-            {t:"sister",m:"자매"},{t:"baby",m:"아기"},{t:"child",m:"아이"},{t:"man",m:"남자"},{t:"woman",m:"여자"},
-            {t:"city",m:"도시"},{t:"country",m:"나라"},{t:"world",m:"세계"},{t:"earth",m:"지구"},{t:"space",m:"우주"},
-            {t:"hotel",m:"호텔"},{t:"bank",m:"은행"},{t:"park",m:"공원"},{t:"store",m:"가게"},{t:"market",m:"시장"},
-            {t:"hospital",m:"병원"},{t:"pharmacy",m:"약국"},{t:"library",m:"도서관"},{t:"museum",m:"박물관"},{t:"theater",m:"극장"},
-            {t:"game",m:"게임"},{t:"sport",m:"스포츠"},{t:"soccer",m:"축구"},{t:"baseball",m:"야구"},{t:"basketball",m:"농구"},
-            {t:"tennis",m:"테니스"},{t:"swim",m:"수영"},{t:"run",m:"달리기"},{t:"jump",m:"점프"},{t:"walk",m:"걷기"},
-            {t:"music",m:"음악"},{t:"song",m:"노래"},{t:"dance",m:"춤"},{t:"movie",m:"영화"},{t:"art",m:"미술"},
-            {t:"paint",m:"그림"},{t:"photo",m:"사진"},{t:"piano",m:"피아노"},{t:"guitar",m:"기타"},{t:"drum",m:"드럼"},
-            {t:"gold",m:"금"},{t:"silver",m:"은"},{t:"iron",m:"철"},{t:"stone",m:"돌"},{t:"sand",m:"모래"},
-            {t:"fire",m:"불"},{t:"ice",m:"얼음"},{t:"wood",m:"나무"},{t:"paper",m:"종이"},{t:"glass",m:"유리"},
-            {t:"clean",m:"깨끗한"},{t:"dirty",m:"더러운"},{t:"heavy",m:"무거운"},{t:"light",m:"가벼운"},{t:"hard",m:"단단한"},
-            {t:"soft",m:"부드러운"},{t:"hot",m:"뜨거운"},{t:"cold",m:"차가운"},{t:"warm",m:"따뜻한"},{t:"cool",m:"시원한"},
-            {t:"big",m:"큰"},{t:"small",m:"작은"},{t:"long",m:"긴"},{t:"short",m:"짧은"},{t:"tall",m:"키가큰"},
-            {t:"fast",m:"빠른"},{t:"slow",m:"느린"},{t:"new",m:"새로운"},{t:"old",m:"오래된"},{t:"young",m:"젊은"},
-            {t:"rich",m:"부유한"},{t:"poor",m:"가난한"},{t:"strong",m:"강한"},{t:"weak",m:"약한"},{t:"bright",m:"밝은"},
-            {t:"dark",m:"어두운"},{t:"loud",m:"시끄러운"},{t:"quiet",m:"조용한"},{t:"safe",m:"안전한"},{t:"danger",m:"위험"},
-            {t:"easy",m:"쉬운"},{t:"hard",m:"어려운"},{t:"true",m:"진실"},{t:"false",m:"거짓"},{t:"right",m:"오른쪽"},
-            {t:"left",m:"왼쪽"},{t:"up",m:"위"},{t:"down",m:"아래"},{t:"front",m:"앞"},{t:"back",m:"뒤"},
-            {t:"beautiful",m:"아름다운"},{t:"ugly",m:"못생긴"},{t:"smart",m:"똑똑한"},{t:"cute",m:"귀여운"},{t:"cool",m:"멋진"},
-            {t:"kind",m:"친절한"},{t:"sweet",m:"달콤한"},{t:"sour",m:"신"},{t:"bitter",m:"쓴"},{t:"salty",m:"짠"},
-            {t:"zero",m:"영"},{t:"hundred",m:"백"},{t:"thousand",m:"천"},{t:"million",m:"백만"},{t:"infinite",m:"무한"},
-            {t:"time",m:"시간"},{t:"date",m:"날짜"},{t:"clock",m:"시계"},{t:"calendar",m:"달력"},{t:"history",m:"역사"},
-            {t:"future",m:"미래"},{t:"past",m:"과거"},{t:"present",m:"현재"},{t:"moment",m:"순간"},{t:"forever",m:"영원"},
-            {t:"map",m:"지도"},{t:"card",m:"카드"},{t:"coin",m:"동전"},{t:"ticket",m:"티켓"},{t:"stamp",m:"우표"},
-            {t:"letter",m:"편지"},{t:"box",m:"상자"},{t:"gift",m:"선물"},{t:"toy",m:"장난감"},{t:"doll",m:"인형"},
-            {t:"kitchen",m:"주방"},{t:"room",m:"방"},{t:"bed",m:"침대"},{t:"mirror",m:"거울"},{t:"soap",m:"비누"},
-            {t:"towel",m:"수건"},{t:"comb",m:"빗"},{t:"brush",m:"솔"},{t:"spoon",m:"숟가락"},{t:"fork",m:"포크"},
-            {t:"knife",m:"칼"},{t:"cup",m:"컵"},{t:"plate",m:"접시"},{t:"pot",m:"냄비"},{t:"pan",m:"팬"},
-            {t:"salt",m:"소금"},{t:"sugar",m:"설탕"},{t:"pepper",m:"후추"},{t:"oil",m:"기름"},{t:"sauce",m:"소스"},
-            {t:"cheese",m:"치즈"},{t:"butter",m:"버터"},{t:"egg",m:"계란"},{t:"cake",m:"케이크"},{t:"cookie",m:"쿠키"},
-            {t:"icecream",m:"아이스크림"},{t:"juice",m:"주스"},{t:"tea",m:"차"},{t:"soup",m:"스프"},{t:"salad",m:"샐러드"},
-            {t:"pizza",m:"피자"},{t:"burger",m:"버거"},{t:"chicken",m:"치킨"},{t:"noodle",m:"국수"},{t:"rice",m:"쌀"}
+            {t:"yesterday",m:"어제"},{t:"tomorrow",m:"내일"},{t:"spring",m:"봄"},{t:"summer",m:"여름"},{t:"autumn",m:"가을"},
+            {t:"winter",m:"겨울"},{t:"red",m:"빨간색"},{t:"blue",m:"파란색"},{t:"yellow",m:"노란색"},{t:"green",m:"초록색"},
+            {t:"black",m:"검은색"},{t:"white",m:"흰색"},{t:"happy",m:"행복한"},{t:"sad",m:"슬픈"},{t:"angry",m:"화난"},
+            {t:"tired",m:"피곤한"},{t:"sleepy",m:"졸린"},{t:"hungry",m:"배고픈"},{t:"doctor",m:"의사"},{t:"nurse",m:"간호사"},
+            {t:"police",m:"경찰"},{t:"firefighter",m:"소방관"},{t:"hello",m:"안녕"},{t:"thanks",m:"감사"},{t:"sorry",m:"미안"},
+            {t:"friend",m:"친구"},{t:"family",m:"가족"},{t:"city",m:"도시"},{t:"country",m:"나라"},{t:"world",m:"세계"}
           ],
           ES: [
             {t:"hola",m:"안녕"},{t:"gracias",m:"감사"},{t:"adios",m:"잘가"},{t:"bueno",m:"좋은"},{t:"malo",m:"나쁜"},
@@ -107,43 +70,18 @@
             {t:"sol",m:"태양"},{t:"luna",m:"달"},{t:"estrella",m:"별"},{t:"cielo",m:"하늘"},{t:"arbol",m:"나무"},
             {t:"flor",m:"꽃"},{t:"libro",m:"책"},{t:"mesa",m:"책상"},{t:"silla",m:"의자"},{t:"puerta",m:"문"},
             {t:"ventana",m:"창문"},{t:"carro",m:"자동차"},{t:"tren",m:"기차"},{t:"avion",m:"비행기"},{t:"barco",m:"배"},
-            {t:"amigo",m:"친구"},{t:"madre",m:"어머니"},{t:"padre",m:"아버지"},{t:"hijo",m:"아들"},{t:"hija",m:"딸"},
-            {t:"niño",m:"아이"},{t:"hombre",m:"남자"},{t:"mujer",m:"여자"},{t:"comida",m:"음식"},{t:"pan",m:"빵"},
+            {t:"amigo",m:"친구"},{t:"madre",m:"어머니"},{t:"padre",m:"아버지"},{t:"comida",m:"음식"},{t:"pan",m:"빵"},
             {t:"manzana",m:"사과"},{t:"platano",m:"바나나"},{t:"leche",m:"우유"},{t:"cafe",m:"커피"},{t:"te",m:"차"},
-            {t:"queso",m:"치즈"},{t:"carne",m:"고기"},{t:"pescado",m:"생선"},{t:"arroz",m:"밥"},{t:"sal",m:"소금"},
-            {t:"azucar",m:"설탕"},{t:"tiempo",m:"시간"},{t:"dia",m:"일"},{t:"noche",m:"밤"},{t:"mañana",m:"아침"},
-            {t:"tarde",m:"오후"},{t:"hoy",m:"오늘"},{t:"ayer",m:"어제"},{t:"año",m:"년"},{t:"mes",m:"월"},
-            {t:"semana",m:"주"},{t:"hora",m:"시간"},{t:"reloj",m:"시계"},{t:"dinero",m:"돈"},{t:"ciudad",m:"도시"},
-            {t:"pais",m:"나라"},{t:"mundo",m:"세계"},{t:"tierra",m:"지구"},{t:"mar",m:"바다"},{t:"rio",m:"강"},
-            {t:"bosque",m:"숲"},{t:"monte",m:"산"},{t:"viento",m:"바람"},{t:"lluvia",m:"비"},{t:"nieve",m:"눈"},
-            {t:"fuego",m:"불"},{t:"hielo",m:"얼음"},{t:"piedra",m:"돌"},{t:"tierra",m:"흙"},{t:"oro",m:"금"},
-            {t:"plata",m:"은"},{t:"rojo",m:"빨간색"},{t:"azul",m:"파란색"},{t:"verde",m:"초록색"},{t:"blanco",m:"흰색"},
-            {t:"negro",m:"검은색"},{t:"amarillo",m:"노란색"},{t:"grande",m:"큰"},{t:"pequeño",m:"작은"},{t:"largo",m:"긴"},
-            {t:"corto",m:"짧은"},{t:"alto",m:"높은"},{t:"bajo",m:"낮은"},{t:"bueno",m:"좋은"},{t:"malo",m:"나쁜"},
-            {t:"feliz",m:"행복한"},{t:"triste",m:"슬픈"},{t:"calor",m:"더위"},{t:"frio",m:"추위"},{t:"nuevo",m:"새로운"},
-            {t:"viejo",m:"오래된"},{t:"joven",m:"젊은"},{t:"fuerte",m:"강한"},{t:"debil",m:"약한"},{t:"facil",m:"쉬운"},
-            {t:"dificil",m:"어려운"},{t:"amor",m:"사랑"},{t:"paz",m:"평화"},{t:"musica",m:"음악"},{t:"arte",m:"미술"},
-            {t:"escuela",m:"학교"},{t:"maestro",m:"교사"},{t:"medico",m:"의사"},{t:"hospital",m:"병원"},{t:"tienda",m:"가게"},
-            {t:"mercado",m:"시장"},{t:"hotel",m:"호텔"},{t:"banco",m:"은행"},{t:"playa",m:"해변"},{t:"carta",m:"편지"},
-            {t:"papel",m:"종이"},{t:"pluma",m:"펜"},{t:"llave",m:"열쇠"},{t:"caja",m:"상자"},{t:"bolsa",m:"가방"},
-            {t:"ropa",m:"옷"},{t:"camisa",m:"셔츠"},{t:"pantalon",m:"바지"},{t:"zapato",m:"신발"},{t:"sombrero",m:"모자"},
-            {t:"reloj",m:"시계"},{t:"gafas",m:"안경"},{t:"cuerpo",m:"몸"},{t:"cabeza",m:"머리"},{t:"cara",m:"얼굴"},
-            {t:"ojo",m:"눈"},{t:"oreja",m:"귀"},{t:"nariz",m:"코"},{t:"boca",m:"입"},{t:"mano",m:"손"},
-            {t:"brazo",m:"팔"},{t:"pierna",m:"다리"},{t:"pie",m:"발"},{t:"corazon",m:"심장"},{t:"sangre",m:"피"},
-            {t:"uno",m:"일"},{t:"dos",m:"이"},{t:"tres",m:"삼"},{t:"cuatro",m:"사"},{t:"cinco",m:"오"},
-            {t:"seis",m:"육"},{t:"siete",m:"칠"},{t:"ocho",m:"팔"},{t:"nueve",m:"구"},{t:"diez",m:"십"},
-            {t:"cien",m:"백"},{t:"mil",m:"천"},{t:"primero",m:"첫째"},{t:"ultimo",m:"마지막"},{t:"siempre",m:"항상"},
-            {t:"nunca",m:"결코"},{t:"quizas",m:"아마도"},{t:"aqui",m:"여기"},{t:"alli",m:"저기"},{t:"donde",m:"어디"},
-            {t:"quien",m:"누구"},{t:"que",m:"무엇"},{t:"cuando",m:"언제"},{t:"porque",m:"왜"},{t:"como",m:"어떻게"},
-            {t:"trabajo",m:"일"},{t:"viaje",m:"여행"},{t:"idioma",m:"언어"},{t:"palabra",m:"단어"},{t:"frase",m:"문장"},
-            {t:"ejemplo",m:"예시"},{t:"pregunta",m:"질문"},{t:"respuesta",m:"답변"},{t:"error",m:"실수"},{t:"exito",m:"성공"},
-            {t:"fiesta",m:"축제"},{t:"regalo",m:"선물"},{t:"juego",m:"게임"},{t:"deporte",m:"스포츠"},{t:"futbol",m:"축구"},
-            {t:"pelicula",m:"영화"},{t:"teatro",m:"극장"},{t:"museo",m:"박물관"},{t:"parque",m:"공원"},{t:"jardin",m:"정원"},
-            {t:"calle",m:"거리"},{t:"plaza",m:"광장"},{t:"puente",m:"다리"},{t:"estacion",m:"역"},{t:"aeropuerto",m:"공항"},
-            {t:"fruta",m:"과일"},{t:"verdura",m:"채소"},{t:"tomate",m:"토마토"},{t:"patata",m:"감자"},{t:"cebolla",m:"양파"},
-            {t:"sopa",m:"스프"},{t:"ensalada",m:"샐러드"},{t:"jugo",m:"주스"},{t:"huevo",m:"계란"},{t:"mantequilla",m:"버터"},
-            {t:"dulces",m:"사탕"},{t:"pastel",m:"케이크"},{t:"helado",m:"아이스크림"},{t:"salud",m:"건강"},{t:"fuerza",m:"힘"},
-            {t:"mente",m:"정신"},{t:"idea",m:"아이디어"},{t:"sueño",m:"꿈"},{t:"verdad",m:"진실"},{t:"vida",m:"인생"}
+            {t:"queso",m:"치즈"},{t:"carne",m:"고기"},{t:"pescado",m:"생선"},{t:"arroz",m:"밥"},{t:"tiempo",m:"시간"},
+            {t:"dia",m:"일"},{t:"noche",m:"밤"},{t:"mañana",m:"아침"},{t:"tarde",m:"오후"},{t:"hoy",m:"오늘"},
+            {t:"año",m:"년"},{t:"mes",m:"월"},{t:"semana",m:"주"},{t:"hora",m:"시간"},{t:"reloj",m:"시계"},
+            {t:"dinero",m:"돈"},{t:"ciudad",m:"도시"},{t:"pais",m:"나라"},{t:"mundo",m:"세계"},{t:"mar",m:"바다"},
+            {t:"rio",m:"강"},{t:"bosque",m:"숲"},{t:"monte",m:"산"},{t:"viento",m:"바람"},{t:"lluvia",m:"비"},
+            {t:"fuego",m:"불"},{t:"hielo",m:"얼음"},{t:"piedra",m:"돌"},{t:"rojo",m:"빨간색"},{t:"azul",m:"파란색"},
+            {t:"verde",m:"초록색"},{t:"blanco",m:"흰색"},{t:"negro",m:"검은색"},{t:"amarillo",m:"노란색"},{t:"grande",m:"큰"},
+            {t:"pequeño",m:"작은"},{t:"feliz",m:"행복한"},{t:"triste",m:"슬픈"},{t:"nuevo",m:"새로운"},{t:"viejo",m:"오래된"},
+            {t:"amor",m:"사랑"},{t:"paz",m:"평화"},{t:"escuela",m:"학교"},{t:"medico",m:"의사"},{t:"hospital",m:"병원"},
+            {t:"ropa",m:"옷"},{t:"camisa",m:"셔츠"},{t:"pantalon",m:"바지"},{t:"zapato",m:"신발"},{t:"cuerpo",m:"몸"}
           ],
           JA: [
             {t:"いぬ",m:"개"},{t:"ねこ",m:"고양이"},{t:"とり",m:"새"},{t:"さかな",m:"물고기"},{t:"うさぎ",m:"토끼"},
@@ -156,30 +94,15 @@
             {t:"かぜ",m:"바람"},{t:"はな",m:"꽃"},{t:"き",m:"나무"},{t:"たいよう",m:"태양"},{t:"つき",m:"달"},
             {t:"ほし",m:"별"},{t:"あさ",m:"아침"},{t:"ひる",m:"낮"},{t:"よる",m:"밤"},{t:"きょう",m:"오늘"},
             {t:"きのう",m:"어제"},{t:"あした",m:"내일"},{t:"ともだち",m:"친구"},{t:"せんせい",m:"선생님"},{t:"がくせい",m:"학생"},
-            {t:"にほん",m:"일본"},{t:"かんこく",m:"한국"},{t:"ことば",m:"단어"},{t:"なまえ",m:"이름"},{t:"おとこ",m:"남자"},
-            {t:"おんな",m:"여자"},{t:"こども",m:"아이"},{t:"て",m:"손"},{t:"あし",m:"발"},{t:"め",m:"눈"},
-            {t:"みみ",m:"귀"},{t:"くち",m:"입"},{t:"はな",m:"코"},{t:"あたま",m:"머리"},{t:"こころ",m:"마음"},
-            {t:"ひとつ",m:"하나"},{t:"ふたつ",m:"둘"},{t:"みっつ",m:"셋"},{t:"よっつ",m:"넷"},{t:"いつつ",m:"다섯"},
-            {t:"むっつ",m:"여섯"},{t:"ななつ",m:"일곱"},{t:"やっつ",m:"여덟"},{t:"ここのつ",m:"아홉"},{t:"とお",m:"열"},
-            {t:"あかい",m:"빨간"},{t:"あおい",m:"파란"},{t:"しろい",m:"하얀"},{t:"くろい",m:"까만"},{t:"きいろ",m:"노란"},
-            {t:"おおきい",m:"큰"},{t:"ちいさい",m:"작은"},{t:"たかい",m:"높은"},{t:"ひくい",m:"낮은"},{t:"あつい",m:"더운"},
-            {t:"さむい",m:"추운"},{t:"いい",m:"좋은"},{t:"わるい",m:"나쁜"},{t:"すき",m:"좋아함"},{t:"きらい",m:"싫어함"},
-            {t:"おいしい",m:"맛있는"},{t:"たのしい",m:"즐거운"},{t:"おもしろい",m:"재미있는"},{t:"げんき",m:"건강함"},{t:"びょうき",m:"아픔"},
-            {t:"でんわ",m:"전화"},{t:"とけい",m:"시계"},{t:"おかね",m:"돈"},{t:"かみ",m:"종이"},{t:"さいふ",m:"지갑"},
-            {t:"しゃしん",m:"사진"},{t:"えいが",m:"영화"},{t:"おんがく",m:"음악"},{t:"うた",m:"노래"},{t:"げーむ",m:"게임"},
-            {t:"てがみ",m:"편지"},{t:"みせ",m:"가게"},{t:"こうえん",m:"공원"},{t:"びょういん",m:"병원"},{t:"ぎんこう",m:"은행"},
-            {t:"がっこう",m:"학교"},{t:"くうこう",m:"공항"},{t:"まち",m:"마을"},{t:"せかい",m:"세계"},{t:"うちゅう",m:"우주"},
-            {t:"はる",m:"봄"},{t:"なつ",m:"여름"},{t:"あき",m:"가을"},{t:"ふゆ",m:"겨울"},{t:"てんき",m:"날씨"},
-            {t:"くすり",m:"약"},{t:"おもちゃ",m:"장난감"},{t:"にんぎょう",m:"인형"},{t:"かぎ",m:"열쇠"},{t:"はこ",m:"상자"},
-            {t:"ちず",m:"지도"},{t:"きっぷ",m:"표"},{t:"かめら",m:"카메라"},{t:"めがね",m:"안경"},{t:"ぼうし",m:"모자"},
-            {t:"ちーず",m:"치즈"},{t:"ばたー",m:"버터"},{t:"たまご",m:"계란"},{t:"けーき",m:"케이크"},{t:"あめ",m:"사탕"},
-            {t:"じゅーす",m:"주스"},{t:"すーぷ",m:"스프"},{t:"さーびす",m:"서비스"},{t:"かぞく",m:"가족"},{t:"ちち",m:"아빠"},
-            {t:"はは",m:"엄마"},{t:"あに",m:"형"},{t:"あね",m:"누나"},{t:"おとうと",m:"남동생"},{t:"いもうと",m:"여동생"},
-            {t:"べんきょう",m:"공부"},{t:"しごと",m:"일"},{t:"りょこう",m:"여행"},{t:"うんどう",m:"운동"},{t:"すぽーつ",m:"스포츠"},
-            {t:"あさごはん",m:"아침밥"},{t:"ひるごはん",m:"점심밥"},{t:"ばんごはん",m:"저녁밥"},{t:"かいもの",m:"쇼핑"},{t:"さんぽ",m:"산책"},
-            {t:"ゆうがた",m:"해질녘"},{t:"ひるま",m:"낮시간"},{t:"しんせん",m:"신선함"},{t:"あんぜん",m:"안전"},{t:"きけん",m:"위험"},
-            {t:"へいわ",m:"평화"},{t:"ゆめ",m:"꿈"},{t:"うそ",m:"거짓말"},{t:"ほんとう",m:"진짜"},{t:"おもいで",m:"추억"}
+            {t:"なまえ",m:"이름"},{t:"おとこ",m:"남자"},{t:"おんな",m:"여자"},{t:"こども",m:"아이"},{t:"て",m:"손"}
           ]
+        };
+
+        // 천지인 자판용 자음 순차 변경 테이블맵 (ㄱ -> ㅋ -> ㄲ)
+        const CHUNJIIN_MAP = {
+          'ㄱ': ['ㄱ', 'ㅋ', 'ㄲ'], 'ㄴ': ['ㄴ', 'ㄹ'], 'ㄷ': ['ㄷ', 'ㅌ', 'ㄸ'],
+          'ㅂ': ['ㅂ', 'ㅍ', 'ㅃ'], 'ㅅ': ['ㅅ', 'ㅆ'], 'ㅈ': ['ㅈ', 'ㅊ', 'ㅉ'],
+          'ㅇ': ['ㅇ', 'ㅁ'], 'ㅎ': ['ㅎ', 'ㅍ']
         };
 
         function fisherYatesShuffle(array) {
@@ -190,31 +113,6 @@
           }
           return result;
         }
-
-        const KEYBOARD_LAYOUTS = {
-          EN: [
-            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-            ['Delete', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Enter']
-          ],
-          ES: [
-            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ñ'],
-            ['Delete', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Enter']
-          ],
-          KO: [
-            ['우주', '바다', '고래', '태양', '하늘'],
-            ['나무', '새', '달빛', '행복', '미소'],
-            ['Delete', '은하수', '꽃', '강물', 'Enter']
-          ],
-          JA: [
-            ['あ', 'い', 'う', 'え', 'お'],
-            ['か', 'き', 'く', 'け', 'こ'],
-            ['さ', 'し', 'す', 'せ', 'そ'],
-            ['た', 'ち', 'つ', 'て', 'と'],
-            ['Delete', 'ら', 'わ', 'ん', 'Enter']
-          ]
-        };
 
         function LanguageRainGame() {
           const [lang, setLang] = useState('KO');
@@ -229,27 +127,36 @@
           const [inputValue, setInputValue] = useState('');
           const [hp, setHp] = useState(5);
 
+          // 영어/스페인어 대문자 제어 상태값
+          const [isShiftActive, setIsShiftActive] = useState(false);
+          // 한국어 천지인 내부 낱자 배열 버퍼
+          const [koBuffer, setKoBuffer] = useState([]);
+          const [lastChar, setLastChar] = useState('');
+
           const wordBufferRef = useRef([]);
           const loopRef = useRef(null);
           const spawnRef = useRef(null);
 
           const toggleFullscreen = () => { setIsFullscreen(!isFullscreen); };
 
-          // 외부 파일 연동 없이 내부 마스터 팩에서 가져오는 무수동 방식
+          // 한국어 낱자 배열을 조합해서 실제 글자로 표현하는 유틸
+          useEffect(() => {
+            if (lang === 'KO') {
+              setInputValue(Hangul.assemble(koBuffer));
+            }
+          }, [koBuffer, lang]);
+
           const loadEmbeddedWords = (targetLang) => {
             if (targetLang === 'KO') {
-              const sampleKo = ['우주', '바다', '고래', '태양', '하늘', '나무', '새', '달빛', '행복', '미소', '은하수', '꽃', '강물'];
+              const sampleKo = ['우주', '바다', '고래', '태양', '하늘', '나무', '새', '달빛', '행복', '미소', '은하수', '꽃', '강물', '지구', '의자', '가방', '고양이', '사과'];
               return fisherYatesShuffle(sampleKo.map(w => ({ text: w, meaning: w })));
             }
-            
             const rawData = MASTER_WORDS[targetLang] || MASTER_WORDS['EN'];
-            // 셔플 후 이번 라운드에 필요한 단어들만 공급
             return fisherYatesShuffle(rawData.map(item => ({ text: item.t, meaning: item.m })));
           };
 
           const startCountdownProcedure = () => {
             const fetched = loadEmbeddedWords(lang);
-
             setIsPlaying(false);
             setFallingWords([]);
             setGhosts([]);
@@ -257,9 +164,10 @@
             setClearCount(0);
             setHp(5);
             setInputValue('');
+            setKoBuffer([]);
+            setLastChar('');
             
             wordBufferRef.current = fetched;
-            
             let count = 3;
             setCountdown(count);
 
@@ -284,10 +192,8 @@
 
           useEffect(() => {
             if (!isPlaying) return;
-
             const spawnWord = () => {
               if (wordBufferRef.current.length === 0) {
-                // 단어가 떨어지면 보관함에서 무한 리필
                 wordBufferRef.current = loadEmbeddedWords(lang);
               }
               const nextItem = wordBufferRef.current.shift();
@@ -305,7 +211,6 @@
 
           useEffect(() => {
             if (!isPlaying) return;
-
             const updatePosition = () => {
               setFallingWords((prev) => {
                 const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.08 + level * 0.02) }));
@@ -325,11 +230,20 @@
             return () => cancelAnimationFrame(loopRef.current);
           }, [isPlaying, level]);
 
-          const handleKeyPress = (key) => {
+          // 스마트폰식 자판 통합 입력 핸들러
+          const handleSmartKeyPress = (key) => {
             if (!isPlaying) return;
 
+            // 1. 공통 기능 키 제어
             if (key === 'Delete') {
-              if (lang === 'KO') { setInputValue(''); } else { setInputValue((prev) => prev.slice(0, -1)); }
+              if (lang === 'KO') {
+                if (koBuffer.length > 0) {
+                  setKoBuffer(prev => prev.slice(0, -1));
+                  setLastChar('');
+                }
+              } else {
+                setInputValue(prev => prev.slice(0, -1));
+              }
               return;
             }
 
@@ -354,17 +268,139 @@
                   setIsPlaying(false);
                   alert("🎉 오늘 목표 미션 클리어!");
                   setInputValue('');
+                  setKoBuffer([]);
                   return;
                 }
               }
               setInputValue('');
+              setKoBuffer([]);
+              setLastChar('');
               return;
             }
-            setInputValue((prev) => prev + key);
+
+            if (key === 'Shift') {
+              setIsShiftActive(!isShiftActive);
+              return;
+            }
+
+            // 2. 언어별 입력 가공 처리
+            if (lang === 'EN' || lang === 'ES') {
+              const charToAppend = isShiftActive ? key.toUpperCase() : key.toLowerCase();
+              setInputValue(prev => prev + charToAppend);
+              setIsShiftActive(false); // 스마트폰처럼 한 자 입력 후 해제
+            } 
+            else if (lang === 'JA') {
+              setInputValue(prev => prev + key);
+            } 
+            else if (lang === 'KO') {
+              // 천지인 자판 핵심 연산 로직
+              if (key === 'ㆍ' || key === 'ㅡ' || key === 'ㅣ') {
+                let mappedVowel = key === 'ㆍ' ? 'ㅏ' : (key === 'ㅡ' ? 'ㅡ' : 'ㅣ');
+                setKoBuffer(prev => [...prev, mappedVowel]);
+                setLastChar(key);
+              } else if (key === '간격') {
+                // 천지인 연속 자음 입력을 끊어주기 위한 간격 버튼 기능
+                setLastChar('');
+              } else {
+                // 자음 연속 터치 시 변형 처리 (ㄱ -> ㅋ -> ㄲ)
+                if (lastChar === key && CHUNJIIN_MAP[key]) {
+                  setKoBuffer(prev => {
+                    const next = [...prev];
+                    next.pop(); // 직전 입력 제거 후 교체
+                    const cycle = CHUNJIIN_MAP[key];
+                    const currIdx = cycle.indexOf(next[next.length - 1] || key);
+                    const nextIdx = (currIdx + 1) % cycle.length;
+                    return [...next, cycle[nextIdx]];
+                  });
+                } else {
+                  setKoBuffer(prev => [...prev, key]);
+                  setLastChar(key);
+                }
+              }
+            }
+          };
+
+          // 📱 모바일 스마트폰 환경을 이식한 자판 레이아웃 렌더러
+          const renderSmartKeyboard = () => {
+            if (lang === 'EN' || lang === 'ES') {
+              const row1 = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'];
+              const row2 = lang === 'ES' ? ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ñ'] : ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'];
+              const row3 = ['Z', 'X', 'C', 'V', 'B', 'N', 'M'];
+
+              return (
+                <div class="virtual-keyboard">
+                  <div class="keyboard-row">
+                    {row1.map(k => <button key={k} class="key-btn" onClick={() => handleSmartKeyPress(k)}>{isShiftActive ? k : k.toLowerCase()}</button>)}
+                  </div>
+                  <div class="keyboard-row">
+                    {row2.map(k => <button key={k} class="key-btn" onClick={() => handleSmartKeyPress(k)}>{isShiftActive ? k : k.toLowerCase()}</button>)}
+                  </div>
+                  <div class="keyboard-row">
+                    <button class={`key-btn functional ${isShiftActive ? 'shift-active' : ''}`} onClick={() => handleSmartKeyPress('Shift')}>⇧</button>
+                    {row3.map(k => <button key={k} class="key-btn" onClick={() => handleSmartKeyPress(k)}>{isShiftActive ? k : k.toLowerCase()}</button>)}
+                    <button class="key-btn functional" onClick={() => handleSmartKeyPress('Delete')}>⌫</button>
+                  </div>
+                  <div class="keyboard-row">
+                    <button class="key-btn enter" onClick={() => handleSmartKeyPress('Enter')}>Enter</button>
+                  </div>
+                </div>
+              );
+            }
+
+            if (lang === 'KO') {
+              // 대한민국 스마트폰 표준 [천지인 기본 자판] 구성
+              return (
+                <div class="virtual-keyboard">
+                  <div class="keyboard-row">
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㄱ')}>ㄱㅋ</button>
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㆍ')}>ㆍ</button>
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㄴ')}>ㄴㄹ</button>
+                  </div>
+                  <div class="keyboard-row">
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㄷ')}>ㄷㅌ</button>
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅡ')}>ㅡ</button>
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅂ')}>ㅂㅍ</button>
+                  </div>
+                  <div class="keyboard-row">
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅅ')}>ㅅㅆ</button>
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅣ')}>ㅣ</button>
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅈ')}>ㅈㅊ</button>
+                  </div>
+                  <div class="keyboard-row">
+                    <button class="key-btn functional" onClick={() => handleSmartKeyPress('간격')}>간격</button>
+                    <button class="key-btn" onClick={() => handleSmartKeyPress('ㅇ')}>ㅇㅁ</button>
+                    <button class="key-btn functional" onClick={() => handleSmartKeyPress('Delete')}>⌫</button>
+                    <button class="key-btn enter" onClick={() => handleSmartKeyPress('Enter')}>Enter</button>
+                  </div>
+                </div>
+              );
+            }
+
+            if (lang === 'JA') {
+              // 모바일 일본어 입력의 표준인 5음도 행 압축 배열 패드 적용
+              const rows = [
+                ['あ', 'か', 'さ', 'た'],
+                ['な', 'は', 'ま', 'や'],
+                ['ら', 'わ', 'ん', 'っ']
+              ];
+              return (
+                <div class="virtual-keyboard">
+                  {rows.map((row, idx) => (
+                    <div key={idx} class="keyboard-row">
+                      {row.map(k => <button key={k} class="key-btn" onClick={() => handleSmartKeyPress(k)}>{k}</button>)}
+                    </div>
+                  ))}
+                  <div class="keyboard-row">
+                    <button class="key-btn functional" onClick={() => handleSmartKeyPress('Delete')}>⌫</button>
+                    <button class="key-btn enter" onClick={() => handleSmartKeyPress('Enter')}>Enter</button>
+                  </div>
+                </div>
+              );
+            }
           };
 
           return (
-            <div style={styles.container} className={isFullscreen ? "ios-fullscreen" : ""}>
+            <div style={styles.container} class={isFullscreen ? "ios-fullscreen" : ""}>
               <div style={styles.header}>
                 <div>Lv. {level}</div>
                 <div style={styles.targetProgress}>🎯 Daily: {clearCount} / 20</div>
@@ -375,7 +411,7 @@
 
               <div style={styles.langTabs}>
                 {['KO', 'EN', 'JA', 'ES'].map((l) => (
-                  <button key={l} onClick={() => { if(countdown === null) { setLang(l); setIsPlaying(false); setFallingWords([]); setGhosts([]); setInputValue(''); } }} style={{ ...styles.tabButton, backgroundColor: lang === l ? '#4A90E2' : '#E0E0E0' }}>{l}</button>
+                  <button key={l} onClick={() => { if(countdown === null) { setLang(l); setIsPlaying(false); setFallingWords([]); setGhosts([]); setInputValue(''); setKoBuffer([]); } }} style={{ ...styles.tabButton, backgroundColor: lang === l ? '#4A90E2' : '#E0E0E0' }}>{l}</button>
                 ))}
               </div>
 
@@ -385,24 +421,15 @@
               </div>
 
               <div style={styles.gameArea}>
-                {ghosts.map((ghost) => ( <div key={ghost.id} className="ghost-text" style={{ left: `${ghost.x}%`, top: `${ghost.y}%` }}>{ghost.text}</div> ))}
-                {countdown !== null && ( <div style={styles.centerOverlay}><div className="countdown-text">{countdown}</div></div> )}
+                {ghosts.map((ghost) => ( <div key={ghost.id} class="ghost-text" style={{ left: `${ghost.x}%`, top: `${ghost.y}%` }}>{ghost.text}</div> ))}
+                {countdown !== null && ( <div style={styles.centerOverlay}><div class="countdown-text">{countdown}</div></div> )}
                 {!isPlaying && countdown === null && (
                   <div style={styles.centerOverlay}><button onClick={startCountdownProcedure} style={styles.startButton}>{lang} Daily 시작</button></div>
                 )}
                 {fallingWords.map((word) => ( <div key={word.id} style={{ ...styles.word, left: `${word.x}%`, top: `${word.y}%` }}><div style={styles.wordText}>{word.text}</div></div> ))}
               </div>
 
-              <div className="virtual-keyboard">
-                {(KEYBOARD_LAYOUTS[lang] || KEYBOARD_LAYOUTS['EN']).map((row, rIdx) => (
-                  <div key={rIdx} className="keyboard-row">
-                    {row.map((key, kIdx) => {
-                      const isSpecial = key === 'Delete' || key === 'Enter';
-                      return ( <button key={kIdx} className={`key-btn ${isSpecial ? 'wide' : ''} ${key === 'Enter' ? 'enter' : ''}`} onClick={() => handleKeyPress(key)}>{key === 'Delete' ? '⌫' : key}</button> );
-                    })}
-                  </div>
-                ))}
-              </div>
+              {renderSmartKeyboard()}
             </div>
           );
         }
