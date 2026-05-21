@@ -2,32 +2,49 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <!-- 모바일 입력 시 화면 확대(Zoom) 방지 및 최적화 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>다국어 산성비 게임</title>
+    <title>다국어 산성비 게임 Pro</title>
     
-    <!-- React 및 Babel 라이브러리 로드 (별도 빌드 없이 실행 가능하게 함) -->
+    <!-- PWA 매니페스트 연동 -->
+    <link rel="manifest" href="./manifest.json">
+    
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F7FA; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F7FA; user-select: none; }
     </style>
 </head>
 <body>
 
     <div id="root"></div>
 
-    <!-- Babel을 이용해 브라우저에서 JSX 바로 실행 -->
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        // 에듀테인먼트 고도화: 단어 데이터에 뜻(Meaning) 구조 결합
         const WORD_DATABASE = {
-          KO: ['사과', '바나나', '컴퓨터', '하늘', '소나기', '고양이', '자동차', '한국어', '개발자', '스마트폰'],
-          EN: ['apple', 'banana', 'computer', 'sky', 'shower', 'cat', 'car', 'language', 'developer', 'smartphone'],
-          JA: ['りんご', 'ねこ', 'くるま', 'そら', 'すいか', 'さくら', 'ほん', 'みず', 'ともだ치', 'せんせい'],
-          ES: ['manzana', 'gato', 'coche', 'cielo', 'lluvia', 'agua', 'amigo', 'sol', 'luna', 'computadora']
+          KO: [
+            { text: '사과', mean: 'Apple' }, { text: '바나나', mean: 'Banana' }, { text: '컴퓨터', mean: 'Computer' },
+            { text: '하늘', mean: 'Sky' }, { text: '소나기', mean: 'Shower' }, { text: '고양이', mean: 'Cat' },
+            { text: '자동차', mean: 'Car' }, { text: '개발자', mean: 'Developer' }
+          ],
+          EN: [
+            { text: 'apple', mean: '사과' }, { text: 'banana', mean: '바나나' }, { text: 'computer', mean: '컴퓨터' },
+            { text: 'sky', mean: '하늘' }, { text: 'shower', mean: '소나기' }, { text: 'cat', mean: '고양이' },
+            { text: 'car', mean: '자동차' }, { text: 'developer', mean: '개발자' }
+          ],
+          JA: [
+            { text: 'りんご', mean: '사과' }, { text: 'ねこ', mean: '고양이' }, { text: 'くるま', mean: '자동차' },
+            { text: 'そら', mean: '하늘' }, { text: 'すいか', mean: '수박' }, { text: 'さくら', mean: '벚꽃' },
+            { text: 'ほん', mean: '책' }, { text: 'みず', mean: '물' }
+          ],
+          ES: [
+            { text: 'manzana', mean: '사과' }, { text: 'gato', mean: '고양이' }, { text: 'coche', mean: '자동차' },
+            { text: 'cielo', mean: '하늘' }, { text: 'lluvia', mean: '비/소나기' }, { text: 'agua', mean: '물' },
+            { text: 'sol', mean: '태양' }, { text: 'luna', mean: '달' }
+          ]
         };
 
         function LanguageRainGame() {
@@ -40,10 +57,8 @@
           const [inputValue, setInputValue] = useState('');
           const [hp, setHp] = useState(5);
 
-          const gameAreaRef = useRef(null);
           const loopRef = useRef(null);
           const spawnRef = useRef(null);
-
           const expToNextLevel = level * 100;
 
           useEffect(() => {
@@ -69,16 +84,16 @@
 
             const spawnWord = () => {
               const wordList = WORD_DATABASE[lang];
-              const randomWord = wordList[Math.floor(Math.random() * wordList.length)];
-              const randomX = Math.floor(Math.random() * 80) + 10; 
+              const randomTarget = wordList[Math.floor(Math.random() * wordList.length)];
+              const randomX = Math.floor(Math.random() * 75) + 12; 
 
               setFallingWords((prev) => [
                 ...prev,
-                { id: Date.now() + Math.random(), text: randomWord, x: randomX, y: 0 }
+                { id: Date.now() + Math.random(), text: randomTarget.text, mean: randomTarget.mean, x: randomX, y: 0 }
               ]);
             };
 
-            const spawnInterval = Math.max(1000, 3000 - level * 200);
+            const spawnInterval = Math.max(900, 3000 - level * 200);
             spawnRef.current = setInterval(spawnWord, spawnInterval);
 
             return () => clearInterval(spawnRef.current);
@@ -89,8 +104,8 @@
 
             const updatePosition = () => {
               setFallingWords((prev) => {
-                const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.5 + level * 0.1) })); 
-                const escaped = nextWords.filter((w) => w.y >= 90);
+                const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.4 + level * 0.08) })); 
+                const escaped = nextWords.filter((w) => w.y >= 92);
                 if (escaped.length > 0) {
                   setHp((currHp) => {
                     const updatedHp = currHp - escaped.length;
@@ -101,7 +116,7 @@
                     return updatedHp;
                   });
                 }
-                return nextWords.filter((w) => w.y < 90);
+                return nextWords.filter((w) => w.y < 92);
               });
               loopRef.current = requestAnimationFrame(updatePosition);
             };
@@ -156,7 +171,7 @@
                 ))}
               </div>
 
-              <div ref={gameAreaRef} style={styles.gameArea}>
+              <div style={styles.gameArea}>
                 {!isPlaying && (
                   <div style={styles.startOverlay}>
                     <button onClick={startGame} style={styles.startButton}>게임 시작</button>
@@ -164,7 +179,8 @@
                 )}
                 {fallingWords.map((word) => (
                   <div key={word.id} style={{ ...styles.word, left: `${word.x}%`, top: `${word.y}%` }}>
-                    {word.text}
+                    <div style={styles.wordText}>{word.text}</div>
+                    <div style={styles.wordMean}>{word.mean}</div>
                   </div>
                 ))}
               </div>
@@ -186,21 +202,32 @@
 
         const styles = {
           container: { display: 'flex', flexDirection: 'column', width: '100vw', height: '100dvh', fontFamily: 'sans-serif', overflow: 'hidden' },
-          header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: '#2C3E50', color: '#FFF', fontSize: '14px' },
+          header: { display: 'flex', justifycontent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: '#2C3E50', color: '#FFF', fontSize: '14px' },
           expBarContainer: { width: '30%', height: '8px', backgroundColor: '#34495E', borderRadius: '4px', overflow: 'hidden' },
           expBar: { height: '100%', backgroundColor: '#2ECC71', transition: 'width 0.2s ease' },
-          langTabs: { display: 'flex', justifyContent: 'space-around', padding: '10px', backgroundColor: '#FFF', borderBottom: '1px solid #E2E8F0' },
+          langTabs: { display: 'flex', justifycontent: 'space-around', padding: '10px', backgroundColor: '#FFF', borderBottom: '1px solid #E2E8F0' },
           tabButton: { padding: '8px 18px', border: 'none', borderRadius: '20px', color: '#FFF', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
           gameArea: { flex: 1, position: 'relative', backgroundColor: '#EDF2F7', overflow: 'hidden' },
-          startOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+          startOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifycontent: 'center', alignItems: 'center', zIndex: 10 },
           startButton: { padding: '15px 40px', fontSize: '18px', backgroundColor: '#4A90E2', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' },
-          word: { position: 'absolute', padding: '6px 12px', backgroundColor: '#FFF', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', transform: 'translateX(-50%)', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
+          word: { position: 'absolute', padding: '5px 10px', backgroundColor: '#FFF', border: '1px solid #CBD5E0', borderRadius: '8px', transform: 'translateX(-50%)', boxid: '0 3px 6px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+          wordText: { fontSize: '15px', fontWeight: 'bold', color: '#2D3748' },
+          wordMean: { fontSize: '11px', color: '#718096', marginTop: '2px' },
           inputArea: { padding: '15px', backgroundColor: '#FFF', borderTop: '1px solid #E2E8F0' },
           input: { width: '100%', padding: '14px', fontSize: '16px', borderRadius: '8px', border: '2px solid #CBD5E0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }
         };
 
-        const root = bankrupt =组件 = ReactDOM.createRoot(document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<LanguageRainGame />);
+
+        // PWA 서비스 워커 동적 브라우저 등록 처리
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+              .then(reg => console.log('서비스 워커가 정상 작동 중입니다.', reg.scope))
+              .catch(err => console.log('서비스 워커 등록 실패:', err));
+          });
+        }
     </script>
 </body>
 </html>
