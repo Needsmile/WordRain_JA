@@ -3,11 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>다국어 산성비 게임 Pro - 완벽 학습판</title>
-    <link rel="manifest" href="./manifest.json">
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>다국어 산성비 게임 Pro - 일일 자동 업데이트판</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F7FA; user-select: none; }
         @keyframes pop {
@@ -20,8 +16,7 @@
             font-weight: bold;
             color: #E74C3C;
             animation: pop 1s ease-in-out infinite;
-        }
-        /* 번역 잔상이 위로 부드럽게 떠오르며 사라지는 애니메이션 */
+          }
         @keyframes fadeUp {
             0% { transform: translate(-50%, 0) scale(0.9); opacity: 1; }
             100% { transform: translate(-50%, -25px) scale(1.1); opacity: 0; }
@@ -38,10 +33,13 @@
             box-shadow: 0 4px 10px rgba(46,204,113,0.3);
             pointer-events: none;
             animation: fadeUp 1.2s forwards ease-out;
-            whiteSpace: nowrap;
+            white-space: nowrap;
             z-index: 8;
         }
     </style>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
     <div id="root"></div>
@@ -58,52 +56,76 @@
           return result;
         }
 
-        // 지연 없는 로딩 및 높은 변별력을 위한 고품질 사전 데이터셋 설계
-        const RICH_DICTIONARY = {
+        // 한국 표준시(KST) YYYY-MM-DD 날짜 문자열 반환 함수
+        function getKstDateString() {
+          const now = new Date();
+          const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+          const kstTime = new Date(utc + (3600000 * 9));
+          const year = kstTime.getFullYear();
+          const month = String(kstTime.getMonth() + 1).padStart(2, '0');
+          const day = String(kstTime.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+
+        // 대규모 마스터 단어 풀 (여기에 단어를 대량으로 넣어두면 매일 10개씩 잠금 해제됩니다)
+        const MASTER_LARGE_DICTIONARY = {
           EN: [
+            // Day 1 제공 분량 (기본 10개)
             { t: 'horizon', m: '지평선' }, { t: 'pinnacle', m: '정점' }, { t: 'paradox', m: '역설' }, { t: 'illusion', m: '환상' },
             { t: 'harmony', m: '조화' }, { t: 'vibrant', m: '활기찬' }, { t: 'genuine', m: '진실된' }, { t: 'scenery', m: '풍경' },
-            { t: 'journey', m: '여정' }, { t: 'destiny', m: '운명' }, { t: 'heritage', m: '유산' }, { t: 'monument', m: '기념물' },
-            { t: 'glimmer', m: '희미한 빛' }, { t: 'eclipse', m: '일식/월식' }, { t: 'breeze', m: '산들바람' }, { t: 'velocity', m: '속도' },
-            { t: 'patience', m: '인내' }, { t: 'wisdom', m: '지혜' }, { t: 'prodigy', m: '영재' }, { t: 'solitude', m: '고독' },
-            { t: 'miracle', m: '기적' }, { t: 'phantom', m: '유령' }, { t: 'spectrum', m: '스펙트럼' }, { t: 'twilight', m: '황혼' }
+            { t: 'journey', m: '여정' }, { t: 'destiny', m: '운명' },
+            // Day 2 자동 해금 분량 (+10개)
+            { t: 'heritage', m: '유산' }, { t: 'monument', m: '기념물' }, { t: 'glimmer', m: '희미한 빛' }, { t: 'eclipse', m: '일식/월식' },
+            { t: 'breeze', m: '산들바람' }, { t: 'velocity', m: '속도' }, { t: 'patience', m: '인내' }, { t: 'wisdom', m: '지혜' },
+            { t: 'prodigy', m: '영재' }, { t: 'solitude', m: '고독' },
+            // Day 3 자동 해금 분량 (+10개)
+            { t: 'miracle', m: '기적' }, { t: 'phantom', m: '유령' }, { t: 'spectrum', m: '스펙트럼' }, { t: 'twilight', m: '황혼' },
+            { t: 'nostalgia', m: '향수/그리움' }, { t: 'infinite', m: '무한한' }, { t: 'wilderness', m: '황무지' }, { t: 'prosperity', m: '번영' },
+            { t: 'sanctuary', m: '안식처' }, { t: 'serenade', m: '소夜곡' }
           ],
           JA: [
+            // Day 1
             { t: 'こころ', m: '마음' }, { t: 'みらい', m: '미래' }, { t: 'きぼう', m: '희망' }, { t: 'おもいで', m: '추억' },
-            { t: 'じかん', m: '시간' }, { t: '세카이', m: '세계' }, { t: 'ひかり', m: '빛' }, { t: 'そら', m: '하늘' },
-            { t: 'ほしぞら', m: '별하늘' }, { t: 'さくら', m: '벚꽃' }, { t: 'まつり', m: '축제' }, { t: 'たびびと', m: '여행자' },
-            { t: 'あらし', m: '폭풍' }, { t: 'つばさ', m: '날개' }, { t: 'きずな', m: '인연' }, { t: 'いのち', m: '생명' },
-            { t: 'しあわせ', m: '행복' }, { t: 'ようせい', m: '요정' }, { t: 'たいよう', m: '태양' }, { t: 'つきあかり', m: '달빛' }
+            { t: 'じかん', m: '시간' }, { t: 'せかい', m: '세계' }, { t: 'ひかり', m: '빛' }, { t: 'そら', m: '하늘' },
+            { t: 'ほしぞら', m: '별하늘' }, { t: 'さくら', m: '벚꽃' },
+            // Day 2
+            { t: 'まつり', m: '축제' }, { t: 'たびびと', m: '여행자' }, { t: 'あらし', m: '폭풍' }, { t: 'つばさ', m: '날개' },
+            { t: 'きずな', m: '인연' }, { t: 'いのち', m: '생명' }, { t: 'しあわせ', m: '행복' }, { t: 'ようせい', m: '요정' },
+            { t: 'たいよう', m: '태양' }, { t: 'つきあかり', m: '달빛' }
           ],
           ES: [
+            // Day 1
             { t: 'destino', m: '운명' }, { t: 'universo', m: '우주' }, { t: 'corazon', m: '마음/심장' }, { t: 'aventura', m: '모험' },
             { t: 'silencio', m: '침묵' }, { t: 'esperanza', m: '희망' }, { t: 'milagro', m: '기적' }, { t: 'libertad', m: '자유' },
-            { t: 'recuerdo', m: '기억/추억' }, { t: 'estrella', m: '별' }, { t: 'mariposa', m: '나비' }, { t: 'camino', m: '길' },
-            { t: 'armonia', m: '조화' }, { t: 'riqueza', m: '부/재물' }, { t: 'tormenta', m: '폭풍우' }, { t: 'ilusión', m: '환상' },
-            { t: 'historia', m: '역사/이야기' }, { t: 'sonrisa', m: '미소' }, { t: 'pajaro', m: '새' }, { t: 'ventana', m: '창문' }
+            { t: 'recuerdo', m: '기억/추억' }, { t: 'estrella', m: '별' },
+            // Day 2
+            { t: 'mariposa', m: '나비' }, { t: 'camino', m: '길' }, { t: 'armonia', m: '조화' }, { t: 'riqueza', m: '부/재물' },
+            { t: 'tormenta', m: '폭풍우' }, { t: 'ilusión', m: '환상' }, { t: 'historia', m: '역사/이야기' }, { t: 'sonrisa', m: '미소' },
+            { t: 'pajaro', m: '새' }, { t: 'ventana', m: '창문' }
           ]
         };
 
         function LanguageRainGame() {
           const [lang, setLang] = useState('KO');
           const [level, setLevel] = useState(() => Number(localStorage.getItem('rain_game_lvl')) || 1);
-          const [exp, setExp] = useState(() => Number(localStorage.getItem('rain_game_exp')) || 0);
           const [score, setScore] = useState(0);
-          const [clearCount, setClearCount] = useState(0); // 20개 미션 타겟 카운터
+          const [clearCount, setClearCount] = useState(0); 
           const [isPlaying, setIsPlaying] = useState(false);
           const [isLoading, setIsLoading] = useState(false);
           const [countdown, setCountdown] = useState(null);
           const [isFullscreen, setIsFullscreen] = useState(false);
           const [fallingWords, setFallingWords] = useState([]);
-          const [ghosts, setGhosts] = useState([]); // 번역 잔상 이펙트 배열
+          const [ghosts, setGhosts] = useState([]); 
           const [inputValue, setInputValue] = useState('');
           const [hp, setHp] = useState(5);
+          
+          // 대화형 일일 해금 정보 출력을 위한 상태값
+          const [unlockedCount, setUnlockedCount] = useState(10);
 
           const wordBufferRef = useRef([]);
           const loopRef = useRef(null);
           const spawnRef = useRef(null);
           const containerRef = useRef(null);
-          const expToNextLevel = level * 100;
 
           const audioCtxRef = useRef(null);
           const bgmIntervalRef = useRef(null);
@@ -123,27 +145,22 @@
             const now = ctx.currentTime;
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
-            
             osc.type = 'square';
             osc.frequency.setValueAtTime(523.25, now);
             osc.frequency.setValueAtTime(783.99, now + 0.08);
-            
             gain.gain.setValueAtTime(0.15, now);
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-            
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start(now);
             osc.stop(now + 0.25);
           };
 
-          // 8bit 승리 축하 사운드 효과음
           const playWinSound = () => {
             if (!audioCtxRef.current) return;
             const ctx = audioCtxRef.current;
             const now = ctx.currentTime;
-            
-            const notes = [523.25, 659.25, 783.99, 1046.50]; // 도-미-솔-도 레트로 아르페지오
+            const notes = [523.25, 659.25, 783.99, 1046.50];
             notes.forEach((freq, index) => {
               const osc = ctx.createOscillator();
               const gain = ctx.createGain();
@@ -168,7 +185,7 @@
               0, 220.00, 0, 246.94, 0, 233.08, 220.00, 0
             ];
             let noteIndex = 0;
-            const noteDuration = 0.16; // 조금 더 차분해진 템포 조율
+            const noteDuration = 0.16;
 
             bgmIntervalRef.current = setInterval(() => {
               const now = ctx.currentTime;
@@ -210,11 +227,43 @@
           const toggleFullscreen = () => {
             if (!document.fullscreenElement) {
               document.documentElement.requestFullscreen().catch((err) => {
-                alert(`전체화면 모드를 활성화할 수 없습니다: ${err.message}`);
+                alert(`전체화면 에러: ${err.message}`);
               });
             } else {
               document.exitFullscreen();
             }
+          };
+
+          // 핵심 로직: 0시 경과 기준 해금 시스템 제어 함수
+          const getDailyUnlockedWords = (targetLang) => {
+            if (targetLang === 'KO') return [];
+
+            const todayStr = getKstDateString();
+            let startDate = localStorage.getItem('rain_game_start_date');
+            
+            // 처음 접속한 유저라면 오늘을 시작일로 등록
+            if (!startDate) {
+              startDate = todayStr;
+              localStorage.setItem('rain_game_start_date', todayStr);
+            }
+
+            // 지난 일수 계산 (날짜 차이 구하기)
+            const startTimestamp = new Date(startDate).getTime();
+            const todayTimestamp = new Date(todayStr).getTime();
+            const diffDays = Math.floor((todayTimestamp - startTimestamp) / (1000 * 60 * 60 * 24));
+
+            // 기본 10개 + 매일 오전 0시가 지날 때마다(1일 경과 시마다) 10개씩 추가 해금
+            const allowCount = 10 + (diffDays * 10);
+            
+            const fullDataset = MASTER_LARGE_DICTIONARY[targetLang] || MASTER_LARGE_DICTIONARY['EN'];
+            // 최댓값 제약 (마스터 풀의 총 개수를 넘지 않도록 방어)
+            const finalCount = Math.min(allowCount, fullDataset.length);
+            
+            // 상단 상태바 UI 출력을 위해 동기화
+            setUnlockedCount(finalCount);
+
+            const slicedWords = fullDataset.slice(0, finalCount);
+            return slicedWords.map(item => ({ text: item.t, meaning: item.m }));
           };
 
           const fetchRandomWords = async (targetLang) => {
@@ -224,7 +273,6 @@
                 const res = await fetch('https://raw.githubusercontent.com/swor0511/Korean-Words-Link/main/words.json');
                 const data = await res.json();
                 const filtered = data.filter(w => w.length >= 2 && w.length <= 5 && /^[가-힣]+$/.test(w));
-                // 한국어는 기존 가공방식의 뜻매칭 구조 통일을 위해 객체 치환
                 const structured = filtered.map(w => ({ text: w, meaning: w }));
                 return fisherYatesShuffle(structured).slice(0, 40);
               } catch (e) {
@@ -233,10 +281,8 @@
                 setIsLoading(false);
               }
             } else {
-              // 글로벌 고품질 딜레이 제로 데이터셋 매칭
-              const dataset = RICH_DICTIONARY[targetLang] || RICH_DICTIONARY['EN'];
-              const structured = dataset.map(item => ({ text: item.t, meaning: item.m }));
-              return fisherYatesShuffle(structured);
+              // 0시 경과 로직이 적용된 안전한 해금 풀 로드
+              return fisherYatesShuffle(getDailyUnlockedWords(targetLang));
             }
           };
 
@@ -252,6 +298,7 @@
             setHp(5);
             setInputValue('');
             
+            // 시작 버퍼 할당 전 실시간 자동 동기화 업데이트 실행
             wordBufferRef.current = await fetchRandomWords(lang);
             
             let count = 3;
@@ -278,7 +325,6 @@
             alert(`게임 오버! 최종 점수: ${score}`);
           };
 
-          // 미션 완수 핸들러
           const triggerMissionClear = () => {
             setIsPlaying(false);
             stopBpmMusic();
@@ -286,7 +332,6 @@
             alert(`🎉 MISSION CLEAR! 🎉\n성공적으로 20개의 단어를 파괴했습니다!`);
           };
 
-          // 단어 스폰 간격 대폭 조절 (속도 제어 고도화)
           useEffect(() => {
             if (!isPlaying) return;
 
@@ -301,28 +346,26 @@
               }
 
               const nextItem = wordBufferRef.current.shift();
-              const randomX = Math.floor(Math.random() * 65) + 15;
+              if(!nextItem) return;
 
+              const randomX = Math.floor(Math.random() * 65) + 15;
               setFallingWords((prev) => [
                 ...prev,
                 { id: Date.now() + Math.random(), text: nextItem.text, meaning: nextItem.meaning, x: randomX, y: 0 }
               ]);
             };
 
-            // 스폰 간격 주기 연장 (Level 1 기준 5초 당 1개 스폰으로 훨씬 여유롭게 조정)
             const spawnInterval = Math.max(1500, 5000 - level * 350);
             spawnRef.current = setInterval(spawnWord, spawnInterval);
 
             return () => clearInterval(spawnRef.current);
           }, [isPlaying, lang, level, isLoading]);
 
-          // 단어 하강 프레임 제어 (낙하 속도 대폭 축소)
           useEffect(() => {
             if (!isPlaying) return;
 
             const updatePosition = () => {
               setFallingWords((prev) => {
-                // 기본 속도 스케일을 0.12에서 0.07로 정밀 조율하여 쾌적한 학습 환경 구축
                 const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.07 + level * 0.03) }));
                 const escaped = nextWords.filter((w) => w.y >= 92);
                 if (escaped.length > 0) {
@@ -358,12 +401,9 @@
               if (targetIndex !== -1) {
                 const matchedWord = fallingWords[targetIndex];
                 
-                // 한국어 모드가 아닐 때만 잔상 컴포넌트 생성 등록
                 if (lang !== 'KO') {
                   const ghostId = Date.now() + Math.random();
                   setGhosts((prev) => [...prev, { id: ghostId, text: matchedWord.meaning, x: matchedWord.x, y: matchedWord.y }]);
-                  
-                  // 1.2초 후 메모리 누수 방지를 위한 자동 파괴 리스너 등록
                   setTimeout(() => {
                     setGhosts((prev) => prev.filter(g => g.id !== ghostId));
                   }, 1200);
@@ -376,31 +416,28 @@
                 const nextCount = clearCount + 1;
                 setClearCount(nextCount);
 
-                // 미션 성공 트리거 체크 (20개 달성 시 완료)
                 if (nextCount >= 20) {
                   triggerMissionClear();
                   setInputValue('');
                   return;
                 }
-
-                setExp((prevExp) => {
-                  let newExp = prevExp + 20;
-                  if (newExp >= expToNextLevel) {
-                    newExp -= expToNextLevel;
-                    setLevel((lvl) => lvl + 1);
-                  }
-                  return newExp;
-                });
               }
               setInputValue('');
             }
           };
 
+          // 탭 전환 시 해금 단어 개수 실시간 선행 계산 유도
+          useEffect(() => {
+            if (lang !== 'KO') {
+              getDailyUnlockedWords(lang);
+            }
+          }, [lang]);
+
           return (
             <div style={styles.container} ref={containerRef}>
               <div style={styles.header}>
                 <div>Lv. {level}</div>
-                <div style={styles.targetProgress}>🎯 미션 달성도: {clearCount} / 20</div>
+                <div style={styles.targetProgress}>🎯 미션: {clearCount} / 20</div>
                 <div>HP: {'❤️'.repeat(hp)}</div>
                 <div>Score: {score}</div>
                 <button onClick={toggleFullscreen} style={styles.fullscreenBtn}>
@@ -420,8 +457,14 @@
                 ))}
               </div>
 
+              {/* 현재 누적 잠금 해금 정보 피드 알림 */}
+              {lang !== 'KO' && (
+                <div style={styles.infoBanner}>
+                  📅 0시 경과 자동 업데이트 활성화됨 (현재 누적 오픈 단어: <b>{unlockedCount}개</b>)
+                </div>
+              )}
+
               <div style={styles.gameArea}>
-                {/* 실시간 화면 렌더링 영역 내 잔상 레이어 배치 */}
                 {ghosts.map((ghost) => (
                   <div key={ghost.id} className="ghost-text" style={{ left: `${ghost.x}%`, top: `${ghost.y}%` }}>
                     {ghost.text}
@@ -472,6 +515,7 @@
           fullscreenBtn: { border: 'none', backgroundColor: '#34495E', color: '#FFF', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' },
           langTabs: { display: 'flex', justifyContent: 'space-around', padding: '10px', backgroundColor: '#FFF', borderBottom: '1px solid #E2E8F0', zIndex: 5 },
           tabButton: { padding: '8px 18px', border: 'none', borderRadius: '20px', color: '#FFF', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
+          infoBanner: { backgroundColor: '#E6F4EA', color: '#137333', textAlign: 'center', fontSize: '12px', padding: '6px', borderBottom: '1px solid #CEEAD6', fontWeight: '500' },
           gameArea: { flex: 1, position: 'relative', backgroundColor: '#EBF8FF', overflow: 'hidden', borderBottom: '4px dashed #CBD5E0' },
           centerOverlay: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10, textAlign: 'center' },
           startButton: { padding: '18px 45px', fontSize: '20px', backgroundColor: '#4A90E2', color: 'white', border: 'none', borderRadius: '50px', fontWeight: 'bold', boxShadow: '0 10px 20px rgba(74,144,226,0.4)', cursor: 'pointer' },
