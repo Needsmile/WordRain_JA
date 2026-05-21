@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>다국어 산성비 게임 Pro - 완전판</title>
+    <title>다국어 산성비 게임 Pro - 레트로 사운드판</title>
     <link rel="manifest" href="./manifest.json">
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F7FA; user-select: none; }
-        /* 카운트다운 애니메이션 효과 */
         @keyframes pop {
             0% { transform: scale(0.5); opacity: 0; }
             50% { transform: scale(1.2); opacity: 1; }
@@ -30,7 +29,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // 고성능 무작위 셔플 알고리즘 (단어 다양성 보장)
         function fisherYatesShuffle(array) {
           const result = [...array];
           for (let i = result.length - 1; i > 0; i--) {
@@ -47,7 +45,7 @@
           const [score, setScore] = useState(0);
           const [isPlaying, setIsPlaying] = useState(false);
           const [isLoading, setIsLoading] = useState(false);
-          const [countdown, setCountdown] = useState(null); // 카운트다운 상태 (null, 3, 2, 1, 'START!')
+          const [countdown, setCountdown] = useState(null);
           const [isFullscreen, setIsFullscreen] = useState(false);
           const [fallingWords, setFallingWords] = useState([]);
           const [inputValue, setInputValue] = useState('');
@@ -59,21 +57,107 @@
           const containerRef = useRef(null);
           const expToNextLevel = level * 100;
 
+          // 오디오 신디사이저 엔진 Refs
+          const audioCtxRef = useRef(null);
+          const bgmIntervalRef = useRef(null);
+
+          // 8bit 사운드 엔진 초기화
+          const initAudio = () => {
+            if (!audioCtxRef.current) {
+              audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtxRef.current.state === 'suspended') {
+              audioCtxRef.current.resume();
+            }
+          };
+
+          // 8bit 정답 효과음 (피치가 도->솔로 빠르게 올라가는 레트로음)
+          const playScoreSound = () => {
+            if (!audioCtxRef.current) return;
+            const ctx = audioCtxRef.current;
+            const now = ctx.currentTime;
+            
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = 'square'; // 레트로 패미컴 느낌의 펄스파
+            osc.frequency.setValueAtTime(523.25, now); // 도 (C5)
+            osc.frequency.setValueAtTime(783.99, now + 0.08); // 솔 (G5)
+            
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start(now);
+            osc.stop(now + 0.25);
+          };
+
+          // 8bit 마리오 스타일 루프 배경음악 재생기
+          const startBpmMusic = () => {
+            if (!audioCtxRef.current) return;
+            const ctx = audioCtxRef.current;
+            
+            // 단순하고 경쾌한 레트로 멜로디 루프 데이터 (주파수 박자 배열)
+            const melody = [
+              330.63, 330.63, 0, 330.63, 0, 261.63, 330.63, 0,
+              392.00, 0, 0, 0, 196.00, 0, 0, 0,
+              261.63, 0, 0, 196.00, 0, 0, 164.81, 0,
+              0, 220.00, 0, 246.94, 0, 233.08, 220.00, 0
+            ];
+            
+            let noteIndex = 0;
+            const noteDuration = 0.15; // 8비트 속도감
+
+            bgmIntervalRef.current = setInterval(() => {
+              const now = ctx.currentTime;
+              const freq = melody[noteIndex];
+              
+              if (freq > 0) {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, now);
+                
+                gain.gain.setValueAtTime(0.04, now); // 배경음이므로 귀에 피로가 없도록 작게 세팅
+                gain.gain.exponentialRampToValueAtTime(0.001, now + noteDuration - 0.02);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start(now);
+                osc.stop(now + noteDuration);
+              }
+              
+              noteIndex = (noteIndex + 1) % melody.length;
+            }, noteDuration * 1000);
+          };
+
+          const stopBpmMusic = () => {
+            if (bgmIntervalRef.current) {
+              clearInterval(bgmIntervalRef.current);
+              bgmIntervalRef.current = null;
+            }
+          };
+
           useEffect(() => {
             localStorage.setItem('rain_game_lvl', level);
             localStorage.setItem('rain_game_exp', exp);
           }, [level, exp]);
 
-          // 전체화면 변경 이벤트 감지 리스너
           useEffect(() => {
             const handleFullscreenChange = () => {
               setIsFullscreen(!!document.fullscreenElement);
             };
             document.addEventListener('fullscreenchange', handleFullscreenChange);
-            return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            return () => {
+              document.removeEventListener('fullscreenchange', handleFullscreenChange);
+              stopBpmMusic();
+            };
           }, []);
 
-          // 전체화면 토글 함수
           const toggleFullscreen = () => {
             if (!document.fullscreenElement) {
               document.documentElement.requestFullscreen().catch((err) => {
@@ -84,7 +168,6 @@
             }
           };
 
-          // 실시간 API 데이터 가져오기 및 셔플 정제
           const fetchRandomWords = async (targetLang) => {
             setIsLoading(true);
             try {
@@ -117,7 +200,7 @@
               console.error(`${targetLang} API 로드 실패 - 폴백 가동`, error);
               const fallbacks = { 
                 KO: ['호수', '나무', '구름', '과자', '여우', '기차', '정원', '노트', '시계', '노래'], 
-                JA: ['ねこ', 'いぬ', 'さくら', 'みず', 'とり', 'すし', 'あめ', 'うみ', 'やま', '하나'], 
+                JA: ['ねこ', 'いぬ', 'さくら', 'みず', 'とり', 'すし', 'あめ', 'う미', 'やま', 'はな'], 
                 EN: ['apple', 'cloud', 'ocean', 'train', 'clock', 'music', 'sweet', 'house', 'plant', 'bread'], 
                 ES: ['casa', 'gato', 'perro', 'agua', 'sol', 'luna', 'flor', 'arbol', 'libro', 'mesa'] 
               };
@@ -127,18 +210,18 @@
             }
           };
 
-          // 게임 시작 절차 (카운트다운 기능 포함)
           const startCountdownProcedure = async () => {
+            initAudio(); // 클릭 핸들러 내부에서 안전하게 오디오 시스템 활성화
+            stopBpmMusic();
+            
             setIsPlaying(false);
             setFallingWords([]);
             setScore(0);
             setHp(5);
             setInputValue('');
             
-            // 사전 데이터 미리 받아오기
             wordBufferRef.current = await fetchRandomWords(lang);
             
-            // 3초 카운트다운 시작
             let count = 3;
             setCountdown(count);
 
@@ -149,7 +232,8 @@
               } else if (count < 0) {
                 clearInterval(timer);
                 setCountdown(null);
-                setIsPlaying(true); // 카운트다운 종료 후 실제 게임 루프 가동
+                setIsPlaying(true);
+                startBpmMusic(); // 게임 실동작과 동시에 BGM 개시
               } else {
                 setCountdown(count);
               }
@@ -158,10 +242,10 @@
 
           const gameOver = () => {
             setIsPlaying(false);
+            stopBpmMusic(); // 게임오버 시 음악 즉시 중단
             alert(`게임 오버! 최종 점수: ${score}`);
           };
 
-          // 단어 스폰 루프 (속도 조절 가동: 1단계는 매우 여유롭게)
           useEffect(() => {
             if (!isPlaying) return;
 
@@ -182,20 +266,17 @@
               ]);
             };
 
-            // 초반 스폰 주기를 대폭 늘림 (Level 1 기준 4.5초에 한 개씩)
             const spawnInterval = Math.max(1000, 4500 - level * 400);
             spawnRef.current = setInterval(spawnWord, spawnInterval);
 
             return () => clearInterval(spawnRef.current);
           }, [isPlaying, lang, level, isLoading]);
 
-          // 단어 하강 프레임 루프 (속도 하향 조정 완료)
           useEffect(() => {
             if (!isPlaying) return;
 
             const updatePosition = () => {
               setFallingWords((prev) => {
-                // 초반 낙하 속도를 대폭 감소시킴 (0.35 -> 0.12)
                 const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.12 + level * 0.04) }));
                 const escaped = nextWords.filter((w) => w.y >= 92);
                 if (escaped.length > 0) {
@@ -230,6 +311,7 @@
 
               if (targetIndex !== -1) {
                 setFallingWords((prev) => prev.filter((_, idx) => idx !== targetIndex));
+                playScoreSound(); // 단어 제거 성공 시 8bit 이펙트음 발생
                 setScore((prev) => prev + 10);
                 setExp((prevExp) => {
                   let newExp = prevExp + 20;
@@ -262,7 +344,7 @@
                 {['KO', 'EN', 'JA', 'ES'].map((l) => (
                   <button
                     key={l}
-                    onClick={() => { if(!isLoading && countdown === null) { setLang(l); setIsPlaying(false); setFallingWords([]); } }}
+                    onClick={() => { if(!isLoading && countdown === null) { setLang(l); setIsPlaying(false); setFallingWords([]); stopBpmMusic(); } }}
                     style={{ ...styles.tabButton, backgroundColor: lang === l ? '#4A90E2' : '#E0E0E0' }}
                   >
                     {l}
@@ -270,15 +352,14 @@
                 ))}
               </div>
 
+              {/* 미니멀 레트로 게임 백그라운드 디자인 반영 */}
               <div style={styles.gameArea}>
-                {/* 카운트다운 오버레이 */}
                 {countdown !== null && (
                   <div style={styles.centerOverlay}>
                     <div className="countdown-text">{countdown}</div>
                   </div>
                 )}
 
-                {/* 시작 대기 오버레이 */}
                 {!isPlaying && countdown === null && (
                   <div style={styles.centerOverlay}>
                     <button onClick={startCountdownProcedure} disabled={isLoading} style={styles.startButton}>
@@ -312,18 +393,21 @@
 
         const styles = {
           container: { display: 'flex', flexDirection: 'column', width: '100vw', height: '100dvh', fontFamily: 'sans-serif', overflow: 'hidden' },
-          header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#2C3E50', color: '#FFF', fontSize: '14px' },
+          header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#2C3E50', color: '#FFF', fontSize: '14px', zIndex: 5 },
           expBarContainer: { width: '25%', height: '8px', backgroundColor: '#34495E', borderRadius: '4px', overflow: 'hidden' },
           expBar: { height: '100%', backgroundColor: '#2ECC71', transition: 'width 0.2s ease' },
           fullscreenBtn: { border: 'none', backgroundColor: '#34495E', color: '#FFF', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' },
-          langTabs: { display: 'flex', justifyContent: 'space-around', padding: '10px', backgroundColor: '#FFF', borderBottom: '1px solid #E2E8F0' },
+          langTabs: { display: 'flex', justifyContent: 'space-around', padding: '10px', backgroundColor: '#FFF', borderBottom: '1px solid #E2E8F0', zIndex: 5 },
           tabButton: { padding: '8px 18px', border: 'none', borderRadius: '20px', color: '#FFF', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
-          gameArea: { flex: 1, position: 'relative', backgroundColor: '#EDF2F7', overflow: 'hidden' },
+          
+          // 가독성을 극대화한 미니멀 파스텔톤 레트로 배경 영역
+          gameArea: { flex: 1, position: 'relative', backgroundColor: '#EBF8FF', overflow: 'hidden', borderBottom: '4px dashed #CBD5E0' },
+          
           centerOverlay: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10, textAlign: 'center' },
           startButton: { padding: '18px 45px', fontSize: '20px', backgroundColor: '#4A90E2', color: 'white', border: 'none', borderRadius: '50px', fontWeight: 'bold', boxShadow: '0 10px 20px rgba(74,144,226,0.4)', cursor: 'pointer' },
-          word: { position: 'absolute', padding: '6px 14px', backgroundColor: '#FFF', border: '1px solid #CBD5E0', borderRadius: '20px', transform: 'translateX(-50%)', boxShadow: '0 4px 8px rgba(0,0,0,0.06)' },
+          word: { position: 'absolute', padding: '6px 14px', backgroundColor: '#FFF', border: '2px solid #4A90E2', borderRadius: '20px', transform: 'translateX(-50%)', boxShadow: '0 4px 8px rgba(0,0,0,0.08)' },
           wordText: { fontSize: '16px', fontWeight: 'bold', color: '#2D3748', whiteSpace: 'nowrap' },
-          inputArea: { padding: '15px', backgroundColor: '#FFF', borderTop: '1px solid #E2E8F0' },
+          inputArea: { padding: '15px', backgroundColor: '#FFF', borderTop: '1px solid #E2E8F0', zIndex: 5 },
           input: { width: '100%', padding: '14px', fontSize: '16px', borderRadius: '8px', border: '2px solid #CBD5E0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }
         };
 
