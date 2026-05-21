@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>다국어 산성비 게임 Pro - 실시간 단어 사전 버전</title>
+    <title>다국어 산성비 게임 Pro - 100% 실시간 API 버전</title>
     <link rel="manifest" href="./manifest.json">
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -18,27 +18,17 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // 사전/단어 API 가동용 주소 정의 (CORS 에러 없는 오픈 에듀 데이터셋 기반)
-        const API_ENDPOINTS = {
-          EN: 'https://random-word-api.herokuapp.com/word?number=30',
-          ES: 'https://random-word-api.herokuapp.com/word?lang=es&number=30',
-          // KO, JA는 CORS 프리 오픈 API 한계로 인해 대규모 데이터 풀에서 무작위 추출 가동
-          KO_POOL: ['하늘', '바다', '나무', '자동차', '컴퓨터', '스마트폰', '소나기', '고양이', '호랑이', '독수리', '비행기', '자전거', '도서관', '선생님', '대학교', '한국어', '개발자', '연구원', '요리사', '축구장', '편의점', '우체국', '정류장', '미술관', '박물관', '지하철', '경찰관', '소방서', '아이폰', '갤럭시', '유튜브', '인터넷', '비빔밥', '김치찌개', '떡볶이'],
-          JA_POOL: ['そら', 'うみ', 'くるま', 'ねこ', 'いぬ', 'さくら', 'ほん', 'みず', 'ともだち', 'せんせい', 'がっこう', 'つくえ', 'いす', 'でんしゃ', 'ひこうき', 'けいたい', 'パソコン', 'すいか', 'とけい', 'おんがく', 'えいが', 'てんき', 'あめ', 'ゆき', 'かぜ', 'ごはん', 'お茶', 'りんご', 'みかん', 'さかな', 'にく', 'やさい', 'はな', 'とり']
-        };
-
         function LanguageRainGame() {
           const [lang, setLang] = useState('KO');
           const [level, setLevel] = useState(() => Number(localStorage.getItem('rain_game_lvl')) || 1);
           const [exp, setExp] = useState(() => Number(localStorage.getItem('rain_game_exp')) || 0);
           const [score, setScore] = useState(0);
           const [isPlaying, setIsPlaying] = useState(false);
-          const [isLoading, setIsLoading] = useState(false); // 단어 로딩 상태 추가
+          const [isLoading, setIsLoading] = useState(false);
           const [fallingWords, setFallingWords] = useState([]);
           const [inputValue, setInputValue] = useState('');
           const [hp, setHp] = useState(5);
 
-          // 실시간으로 받아온 단어들을 쌓아두는 버퍼 큐
           const wordBufferRef = useRef([]);
           const loopRef = useRef(null);
           const spawnRef = useRef(null);
@@ -49,30 +39,52 @@
             localStorage.setItem('rain_game_exp', exp);
           }, [level, exp]);
 
-          // 사전 웹사이트/API로부터 무작위 단어 풀을 충전하는 함수
+          // 고도화: 4개 언어 모두 외부 실시간 API 연동 가동
           const fetchRandomWords = async (targetLang) => {
             setIsLoading(true);
             try {
-              if (targetLang === 'EN' || targetLang === 'ES') {
-                const res = await fetch(API_ENDPOINTS[targetLang]);
+              if (targetLang === 'EN') {
+                const res = await fetch('https://random-word-api.herokuapp.com/word?number=40');
                 const data = await res.json();
-                // 글자가 너무 길면 모바일 화면을 벗어나므로 3~7글자 사이 단어로 필터링
-                return data.filter(word => word.length >= 3 && word.length <= 7);
-              } else {
-                // KO, JA의 경우 준비된 대용량 단어 풀에서 무작위 셔플링하여 리턴
-                const pool = targetLang === 'KO' ? API_ENDPOINTS.KO_POOL : API_ENDPOINTS.JA_POOL;
-                return [...pool].sort(() => Math.random() - 0.5).slice(0, 20);
+                return data.filter(w => w.length >= 3 && w.length <= 8);
+              } 
+              
+              if (targetLang === 'ES') {
+                const res = await fetch('https://random-word-api.herokuapp.com/word?lang=es&number=40');
+                const data = await res.json();
+                return data.filter(w => w.length >= 3 && w.length <= 8);
               }
+
+              if (targetLang === 'KO') {
+                // 다국어 오픈 사전 데이터셋(자유 우회 경로)을 활용한 무작위 명사 파싱
+                const res = await fetch('https://raw.githubusercontent.com/swor0511/Korean-Words-Link/main/words.json');
+                const data = await res.json();
+                // 2글자~5글자 사이의 순수 한국어 단어만 무작위 30개 추출
+                const filtered = data.filter(w => w.length >= 2 && w.length <= 5 && /^[가-힣]+$/.test(w));
+                return filtered.sort(() => Math.random() - 0.5).slice(0, 30);
+              }
+
+              if (targetLang === 'JA') {
+                // 오픈소스 일본어 기초 어휘 및 가나 전용 데이터셋 연동
+                const res = await fetch('https://raw.githubusercontent.com/motoki317/00_basetopt_words/main/japanese_words.json');
+                const data = await res.json(); // 히라가나/가타카나 기반의 배열 구조 데이터
+                // 모바일 레이아웃에 적합한 2~5글자 사이 가나 단어 무작위 30개 추출
+                const filtered = data.filter(w => w.length >= 2 && w.length <= 5 && /^[ぁ-んァ-ヶ]+$/.test(w));
+                return filtered.sort(() => Math.random() - 0.5).slice(0, 30);
+              }
+
             } catch (error) {
-              console.error("단어 수집 실패, 기본 풀로 우회합니다.", error);
-              return ['error', 'retry', 'internet', 'connection'];
+              console.error(`${targetLang} API 호출 오류 발생 - 임시 복구 모드로 전환`, error);
+              // 네트워크 지연/에러 시 게임 멈춤 방지용 백업 폴백 데이터
+              const fallbacks = { KO: ['사과', '하늘', '바다'], JA: ['ねこ', 'さくら', 'みず'], EN: ['test', 'word', 'game'], ES: ['casa', 'gato', 'sol'] };
+              return fallbacks[targetLang];
             } finally {
               setIsLoading(false);
             }
           };
 
-          // 게임 시작 및 실시간 단어장 사전 충전
           const startGame = async () => {
+            setIsPlaying(false);
             wordBufferRef.current = await fetchRandomWords(lang);
             setFallingWords([]);
             setScore(0);
@@ -86,12 +98,10 @@
             alert(`게임 오버! 최종 점수: ${score}`);
           };
 
-          // 단어 생성 및 버퍼 리필 제어 루프
           useEffect(() => {
             if (!isPlaying) return;
 
             const spawnWord = async () => {
-              // 버퍼에 단어가 부족해지면 백그라운드에서 실시간 추가 충전
               if (wordBufferRef.current.length < 5 && !isLoading) {
                 const freshWords = await fetchRandomWords(lang);
                 wordBufferRef.current = [...wordBufferRef.current, ...freshWords];
@@ -99,8 +109,8 @@
 
               if (wordBufferRef.current.length === 0) return;
 
-              const nextWord = wordBufferRef.current.shift(); // 큐에서 단어 하나 꺼내기
-              const randomX = Math.floor(Math.random() * 75) + 12;
+              const nextWord = wordBufferRef.current.shift();
+              const randomX = Math.floor(Math.random() * 70) + 15; // 좌우 마진 확보
 
               setFallingWords((prev) => [
                 ...prev,
@@ -108,19 +118,18 @@
               ]);
             };
 
-            const spawnInterval = Math.max(800, 3000 - level * 200);
+            const spawnInterval = Math.max(800, 3200 - level * 250);
             spawnRef.current = setInterval(spawnWord, spawnInterval);
 
             return () => clearInterval(spawnRef.current);
           }, [isPlaying, lang, level, isLoading]);
 
-          // 하강 처리 애니메이션
           useEffect(() => {
             if (!isPlaying) return;
 
             const updatePosition = () => {
               setFallingWords((prev) => {
-                const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.4 + level * 0.08) }));
+                const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.35 + level * 0.08) }));
                 const escaped = nextWords.filter((w) => w.y >= 92);
                 if (escaped.length > 0) {
                   setHp((currHp) => {
@@ -145,14 +154,19 @@
             if (e.key === 'Enter') {
               if (e.nativeEvent.isComposing) return;
 
-              const trimmedInput = inputValue.trim().toLowerCase(); // 영어 대소문자 방어
-              const targetIndex = fallingWords.findIndex((w) => w.text.toLowerCase() === trimmedInput);
+              const trimmedInput = inputValue.trim();
+              // 영어/스페인어는 대소문자 무시 비교 처리
+              const isMatch = (wText) => (lang === 'EN' || lang === 'ES') 
+                ? wText.toLowerCase() === trimmedInput.toLowerCase() 
+                : wText === trimmedInput;
+
+              const targetIndex = fallingWords.findIndex((w) => isMatch(w.text));
 
               if (targetIndex !== -1) {
                 setFallingWords((prev) => prev.filter((_, idx) => idx !== targetIndex));
                 setScore((prev) => prev + 10);
                 setExp((prevExp) => {
-                  let newExp = prevExp + 25; // 실시간 단어는 난이도가 있으므로 경험치 상향
+                  let newExp = prevExp + 30; // 100% 라이브 외부 사전 반영 보너스 경험치
                   if (newExp >= expToNextLevel) {
                     newExp -= expToNextLevel;
                     setLevel((lvl) => lvl + 1);
@@ -187,13 +201,11 @@
                 ))}
               </div>
 
-              {/* 게임 보드 영역 */}
               <div style={styles.gameArea}>
-                {/* 요구사항 해결: 시작 버튼 화면 정가운데 배치 완료 */}
                 {!isPlaying && (
                   <div style={styles.centerOverlay}>
                     <button onClick={startGame} disabled={isLoading} style={styles.startButton}>
-                      {isLoading ? "단어장 로딩 중..." : `${lang} 모드 시작`}
+                      {isLoading ? "라이브 사전 로딩 중..." : `${lang} 사전 모드 시작`}
                     </button>
                   </div>
                 )}
@@ -210,7 +222,7 @@
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={isPlaying ? "사전 단어 입력 후 엔터!" : "중앙의 시작 버튼을 누르세요"}
+                  placeholder={isPlaying ? "사전 라이브 단어 입력!" : "언어 선택 후 시작을 누르세요"}
                   disabled={!isPlaying}
                   style={styles.input}
                 />
@@ -226,49 +238,17 @@
           expBar: { height: '100%', backgroundColor: '#2ECC71', transition: 'width 0.2s ease' },
           langTabs: { display: 'flex', justifyContent: 'space-around', padding: '10px', backgroundColor: '#FFF', borderBottom: '1px solid #E2E8F0' },
           tabButton: { padding: '8px 18px', border: 'none', borderRadius: '20px', color: '#FFF', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
-          
-          // 상위 영역을 flex 기반 기하학적 버퍼로 설정
           gameArea: { flex: 1, position: 'relative', backgroundColor: '#EDF2F7', overflow: 'hidden' },
-          
-          // 요구사항 해결: 완전한 화면 정가운데 배치용 인텐스 스타일 컴포넌트
-          centerOverlay: {
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 10,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center'
-          },
-          startButton: { 
-            padding: '18px 45px', 
-            fontSize: '20px', 
-            backgroundColor: '#4A90E2', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '50px', 
-            fontWeight: 'bold', 
-            boxShadow: '0 10px 20px rgba(74,144,226,0.4)',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'transform 0.1s ease'
-          },
-
+          centerOverlay: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 },
+          startButton: { padding: '18px 45px', fontSize: '20px', backgroundColor: '#4A90E2', color: 'white', border: 'none', borderRadius: '50px', fontWeight: 'bold', boxShadow: '0 10px 20px rgba(74,144,226,0.4)', cursor: 'pointer' },
           word: { position: 'absolute', padding: '8px 16px', backgroundColor: '#FFF', border: '1px solid #CBD5E0', borderRadius: '20px', transform: 'translateX(-50%)', boxShadow: '0 4px 8px rgba(0,0,0,0.06)' },
-          wordText: { fontSize: '16px', fontWeight: 'bold', color: '#2D3748' },
+          wordText: { fontSize: '16px', fontWeight: 'bold', color: '#2D3748', whiteSpace: 'nowrap' },
           inputArea: { padding: '15px', backgroundColor: '#FFF', borderTop: '1px solid #E2E8F0' },
           input: { width: '100%', padding: '14px', fontSize: '16px', borderRadius: '8px', border: '2px solid #CBD5E0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<LanguageRainGame />);
-
-        if ('serviceWorker' in navigator) {
-          window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
-          });
-        }
     </script>
 </body>
 </html>
