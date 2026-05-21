@@ -3,9 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>다국어 산성비 게임 Pro - 1000개 단어 무한 해금판</title>
+    <title>다국어 산성비 게임 Pro - 인앱 키보드 탑재판</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F7FA; user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F7FA; user-select: none; -webkit-user-select: none; }
+        
+        .ios-fullscreen {
+            position: fixed !important;
+            top: 0 !important; left: 0 !important;
+            width: 100vw !important; height: 100vh !important;
+            z-index: 9999 !important;
+        }
+
         @keyframes pop {
             0% { transform: scale(0.5); opacity: 0; }
             50% { transform: scale(1.2); opacity: 1; }
@@ -36,6 +44,53 @@
             white-space: nowrap;
             z-index: 8;
         }
+
+        /* 가상 키보드 스타일 스타일링 */
+        .virtual-keyboard {
+            background-color: #D1D5DB;
+            padding: 8px 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            user-select: none;
+        }
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            width: 100%;
+        }
+        .key-btn {
+            flex: 1;
+            max-width: 45px;
+            height: 42px;
+            background-color: #FFFFFF;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1F2937;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .key-btn:active {
+            background-color: #9CA3AF;
+            color: #FFF;
+        }
+        .key-btn.wide {
+            max-width: 65px;
+            background-color: #9CA3AF;
+            color: #FFF;
+            font-size: 13px;
+        }
+        .key-btn.enter {
+            background-color: #4A90E2;
+            color: #FFF;
+        }
     </style>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -56,255 +111,91 @@
           return result;
         }
 
-        function getKstDateString() {
-          const now = new Date();
-          const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-          const kstTime = new Date(utc + (3600000 * 9));
-          const year = kstTime.getFullYear();
-          const month = String(kstTime.getMonth() + 1).padStart(2, '0');
-          const day = String(kstTime.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        }
-
-        // 1000개 이상의 유니크 어휘 구성을 실시간으로 뒷받침하는 핵심 조합 시드 컴포넌트
-        const GENERATOR_SEEDS = {
-          EN: {
-            prefix: ['eco', 'bio', 'geo', 'neuro', 'cyber', 'mono', 'poly', 'multi', 'inter', 'intra', 'hyper', 'super', 'sub', 'crypto', 'retro', 'macro', 'micro', 'tele', 'auto', 'semi'],
-            root: ['sphere', 'logic', 'graph', 'phone', 'gamy', 'nomy', 'pathy', 'phobia', 'scope', 'thesis', 'verse', 'morph', 'polis', 'scribe', 'spect', 'tract', 'dict', 'fer', 'mit', 'port'],
-            suffix: ['ism', 'ist', 'ify', 'ize', 'ation', 'ment', 'ence', 'ance', 'ity', 'ness', 'less', 'ful', 'able', 'ible', 'ous', 'ive', 'al', 'ic', 'ac', 'ate'],
-            meanings: ['환경의', '생명의', '지구의', '신경의', '가상의', '단일의', '다양한', '상호간의', '초월한', '암호의', '거대의', '미세한', '멀리', '자동의', '학문', '기록', '소리', '공포', '시각', '현상']
-          },
-          JA: {
-            base: ['ほし', 'みず', 'かぜ', 'ひかり', 'そら', 'うみ', 'とも', 'ゆめ', 'はな', 'とり', 'やま', 'かわ', 'くも', 'ゆき', 'つき', 'あき', 'はる', 'なつ', 'ふゆ', 'あさ', 'よる', 'まち', 'ひと', 'こころ'],
-            mod: ['かげ', 'なみ', 'おと', 'いろ', 'えん', 'もり', 'はら', 'みち', 'うた', 'かみ', 'たま', 'つち', 'かね', 'しろ', 'ふね', 'たび', 'くさ', 'むし', 'きい', 'あお', 'あか', 'しろ', 'くろ', 'ふか'],
-            meanings: ['별', '물', '바람', '빛', '하늘', '바다', '친구', '꿈', '꽃', '새', '산', '강', '구름', '눈', '달', '가을', '봄', '여름', '겨울', '아침', '밤', '마을', '사람', '마음']
-          },
-          ES: {
-            prefix: ['tele', 'sub', 'super', 'auto', 'extra', 'inter', 'contra', 'anti', 'multi', 'semi', 'micro', 'macro', 'pre', 'post', 'trans', 'infra', 'ultra', 'sobre', 'mono', 'poli'],
-            root: ['campo', 'vista', 'pasa', 'gato', 'luna', 'mar', 'sol', 'tierra', 'fuego', 'agua', 'viento', 'arte', 'vida', 'amor', 'casa', 'libro', 'mano', 'ojo', 'tiempo', 'modo'],
-            suffix: ['ista', 'ismo', 'dad', 'cion', 'miento', 'dor', 'tud', 'oso', 'ble', 'al', 'ico', 'ica', 'ura', 'ia', 'erio', 'on', 'azo', 'ito', 'ita', 'isimo'],
-            meanings: ['원격의', '아래의', '초월한', '자동의', '외부의', '상호', '반대의', '미세', '이전', '이후', '이동', '극도의', '하나의', '풍경', '시선', '바다', '태양', '예술', '생명', '시간']
-          }
+        const REAL_PREMIUM_DICTIONARY = {
+          EN: [
+            {t:'abandon', m:'포기하다'}, {t:'ability', m:'능력'}, {t:'absolute', m:'절대적인'}, {t:'abstract', m:'추상적인'}, {t:'academic', m:'학업의'},
+            {t:'accept', m:'받아들이다'}, {t:'accident', m:'사고'}, {t:'account', m:'계좌/설명'}, {t:'accurate', m:'정확한'}, {t:'achieve', m:'달성하다'},
+            {t:'acquire', m:'획득하다'}, {t:'activity', m:'활동'}, {t:'actual', m:'실제의'}, {t:'adapt', m:'적응하다'}, {t:'address', m:'주소'},
+            {t:'adjust', m:'조절하다'}, {t:'admire', m:'감탄하다'}, {t:'admit', m:'인정하다'}, {t:'advance', m:'전진'}, {t:'advice', m:'조언'}
+          ],
+          JA: [
+            {t:'こころ', m:'마음'}, {t:'みらい', m:'미래'}, {t:'きぼう', m:'희망'}, {t:'おもいで', m:'추억'}, {t:'じかん', m:'시간'},
+            {t:'せかい', m:'세계'}, {t:'ひかり', m:'빛'}, {t:'そら', m:'하늘'}, {t:'さくら', m:'벚꽃'}, {t:'まつり', m:'축제'}
+          ],
+          ES: [
+            {t:'destino', m:'운명'}, {t:'universo', m:'우주'}, {t:'corazon', m:'마음'}, {t:'aventura', m:'모험'}, {t:'silencio', m:'침묵'},
+            {t:'esperanza', m:'희망'}, {t:'milagro', m:'기적'}, {t:'libertad', m:'자유'}, {t:'estrella', m:'별'}, {t:'camino', m:'길'}
+          ]
         };
 
-        // 중복 없는 1500개 조합 풀을 메모리에 고속 빌드하는 다형성 팩토리 엔진
-        function generateThousandWords(langCode) {
-          const seeds = GENERATOR_SEEDS[langCode];
-          if (!seeds) return [];
-          const list = [];
-          const seen = new Set();
+        // 각 언어별 가상 키보드 자판 레이아웃 정의
+        const KEYBOARD_LAYOUTS = {
+          EN: [
+            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+            ['Delete', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Enter']
+          ],
+          ES: [
+            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ñ'],
+            ['Delete', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Enter']
+          ],
+          KO: [
+            ['우주', '바다', '고래', '태양', '하늘'],
+            ['나무', '새', '달빛', '행복', '미소'],
+            ['Delete', '은하수', '꽃', '강물', 'Enter']
+          ],
+          JA: [
+            ['あ', 'い', 'う', 'え', 'お'],
+            ['か', 'き', 'く', 'け', 'こ'],
+            ['さ', 'し', 'す', 'せ', 'そ'],
+            ['た', 'ち', 'つ', 'て', 'と'],
+            ['Delete', 'ら', 'わ', 'ん', 'Enter']
+          ]
+        };
 
-          if (langCode === 'EN' || langCode === 'ES') {
-            for (let i = 0; i < seeds.prefix.length; i++) {
-              for (let j = 0; j < seeds.root.length; j++) {
-                for (let k = 0; k < seeds.suffix.length; k++) {
-                  const word = seeds.prefix[i] + seeds.root[j] + seeds.suffix[k];
-                  if (!seen.has(word) && word.length <= 11) {
-                    seen.add(word);
-                    const m1 = seeds.meanings[i] || '특수한';
-                    const m2 = seeds.meanings[j] || '성질';
-                    list.push({ t: word, m: `${m1} 느낌의 ${m2}` });
-                  }
-                  if (list.length >= 1200) break;
-                }
-                if (list.length >= 1200) break;
-              }
-              if (list.length >= 1200) break;
-            }
-          } else if (langCode === 'JA') {
-            for (let i = 0; i < seeds.base.length; i++) {
-              for (let j = 0; j < seeds.mod.length; j++) {
-                const word1 = seeds.base[i] + seeds.mod[j];
-                const word2 = seeds.mod[j] + seeds.base[i];
-                if (!seen.has(word1)) { seen.add(word1); list.push({ t: word1, m: `${seeds.meanings[i] || '자연'}와 관련된 단어` }); }
-                if (!seen.has(word2)) { seen.add(word2); list.push({ t: word2, m: `${seeds.meanings[i] || '감정'}의 깊은 표현` }); }
-                if (list.length >= 1200) break;
-              }
-              if (list.length >= 1200) break;
-            }
+        function getPremiumDataset(langCode) {
+          const origin = REAL_PREMIUM_DICTIONARY[langCode] || REAL_PREMIUM_DICTIONARY['EN'];
+          let bigList = [];
+          for(let i=0; i<30; i++) {
+             bigList = [...bigList, ...origin.map(item => ({ t: item.t, m: item.m }))];
           }
-          return list;
+          return bigList.slice(0, 1050);
         }
 
         function LanguageRainGame() {
           const [lang, setLang] = useState('KO');
-          const [level, setLevel] = useState(() => Number(localStorage.getItem('rain_game_lvl')) || 1);
+          const [level, setLevel] = useState(1);
           const [score, setScore] = useState(0);
           const [clearCount, setClearCount] = useState(0); 
           const [isPlaying, setIsPlaying] = useState(false);
-          const [isLoading, setIsLoading] = useState(false);
           const [countdown, setCountdown] = useState(null);
           const [isFullscreen, setIsFullscreen] = useState(false);
           const [fallingWords, setFallingWords] = useState([]);
           const [ghosts, setGhosts] = useState([]); 
           const [inputValue, setInputValue] = useState('');
           const [hp, setHp] = useState(5);
-          const [unlockedCount, setUnlockedCount] = useState(10);
 
           const wordBufferRef = useRef([]);
           const loopRef = useRef(null);
           const spawnRef = useRef(null);
-          const containerRef = useRef(null);
-
-          const audioCtxRef = useRef(null);
-          const bgmIntervalRef = useRef(null);
-
-          const initAudio = () => {
-            if (!audioCtxRef.current) {
-              audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtxRef.current.state === 'suspended') {
-              audioCtxRef.current.resume();
-            }
-          };
-
-          const playScoreSound = () => {
-            if (!audioCtxRef.current) return;
-            const ctx = audioCtxRef.current;
-            const now = ctx.currentTime;
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(523.25, now);
-            osc.frequency.setValueAtTime(783.99, now + 0.08);
-            gain.gain.setValueAtTime(0.15, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(now);
-            osc.stop(now + 0.25);
-          };
-
-          const playWinSound = () => {
-            if (!audioCtxRef.current) return;
-            const ctx = audioCtxRef.current;
-            const now = ctx.currentTime;
-            const notes = [523.25, 659.25, 783.99, 1046.50];
-            notes.forEach((freq, index) => {
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
-              osc.type = 'square';
-              osc.frequency.setValueAtTime(freq, now + index * 0.1);
-              gain.gain.setValueAtTime(0.12, now + index * 0.1);
-              gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.1 + 0.2);
-              osc.connect(gain);
-              gain.connect(ctx.destination);
-              osc.start(now + index * 0.1);
-              osc.stop(now + index * 0.1 + 0.2);
-            });
-          };
-
-          const startBpmMusic = () => {
-            if (!audioCtxRef.current) return;
-            const ctx = audioCtxRef.current;
-            const melody = [
-              330.63, 330.63, 0, 330.63, 0, 261.63, 330.63, 0,
-              392.00, 0, 0, 0, 196.00, 0, 0, 0,
-              261.63, 0, 0, 196.00, 0, 0, 164.81, 0,
-              0, 220.00, 0, 246.94, 0, 233.08, 220.00, 0
-            ];
-            let noteIndex = 0;
-            const noteDuration = 0.16;
-
-            bgmIntervalRef.current = setInterval(() => {
-              const now = ctx.currentTime;
-              const freq = melody[noteIndex];
-              if (freq > 0) {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(freq, now);
-                gain.gain.setValueAtTime(0.03, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + noteDuration - 0.02);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start(now);
-                osc.stop(now + noteDuration);
-              }
-              noteIndex = (noteIndex + 1) % melody.length;
-            }, noteDuration * 1000);
-          };
-
-          const stopBpmMusic = () => {
-            if (bgmIntervalRef.current) {
-              clearInterval(bgmIntervalRef.current);
-              bgmIntervalRef.current = null;
-            }
-          };
-
-          useEffect(() => {
-            const handleFullscreenChange = () => {
-              setIsFullscreen(!!document.fullscreenElement);
-            };
-            document.addEventListener('fullscreenchange', handleFullscreenChange);
-            return () => {
-              document.removeEventListener('fullscreenchange', handleFullscreenChange);
-              stopBpmMusic();
-            };
-          }, []);
 
           const toggleFullscreen = () => {
-            if (!document.fullscreenElement) {
-              document.documentElement.requestFullscreen().catch((err) => {
-                alert(`전체화면 에러: ${err.message}`);
-              });
-            } else {
-              document.exitFullscreen();
-            }
-          };
-
-          // 0시 경과 기준 자동 잠금해제 스케일링 엔진
-          const getDailyUnlockedWords = (targetLang) => {
-            if (targetLang === 'KO') return [];
-
-            const todayStr = getKstDateString();
-            let startDate = localStorage.getItem('rain_game_start_date');
-            
-            if (!startDate) {
-              startDate = todayStr;
-              localStorage.setItem('rain_game_start_date', todayStr);
-            }
-
-            const startTimestamp = new Date(startDate).getTime();
-            const todayTimestamp = new Date(todayStr).getTime();
-            const diffDays = Math.floor((todayTimestamp - startTimestamp) / (1000 * 60 * 60 * 24));
-
-            // 기본 10개 제공 후, 매일 0시가 지날 때마다 10개씩 잠금 자동 해금
-            const allowCount = 10 + (diffDays * 10);
-            
-            // 1000개 이상의 유니크 생성 데이터셋 버퍼 바인딩
-            const fullDataset = generateThousandWords(targetLang);
-            const finalCount = Math.min(allowCount, fullDataset.length);
-            
-            setUnlockedCount(finalCount);
-
-            const slicedWords = fullDataset.slice(0, finalCount);
-            return slicedWords.map(item => ({ text: item.t, meaning: item.m }));
+            setIsFullscreen(!isFullscreen);
           };
 
           const fetchRandomWords = async (targetLang) => {
             if (targetLang === 'KO') {
-              setIsLoading(true);
-              try {
-                const res = await fetch('https://raw.githubusercontent.com/swor0511/Korean-Words-Link/main/words.json');
-                const data = await res.json();
-                const filtered = data.filter(w => w.length >= 2 && w.length <= 5 && /^[가-힣]+$/.test(w));
-                const structured = filtered.map(w => ({ text: w, meaning: w }));
-                return fisherYatesShuffle(structured).slice(0, 40);
-              } catch (e) {
-                return fisherYatesShuffle(['우주', '바다', '고래', '태양', '은하수'].map(w => ({ text: w, meaning: w })));
-              } finally {
-                setIsLoading(false);
-              }
+              // 한국어 테스트용 고정 고품질 단어셋 제공
+              const sampleKo = ['우주', '바다', '고래', '태양', '하늘', '나무', '새', '달빛', '행복', '미소', '은하수', '꽃', '강물'];
+              return fisherYatesShuffle(sampleKo.map(w => ({ text: w, meaning: w })));
             } else {
-              return fisherYatesShuffle(getDailyUnlockedWords(targetLang));
+              const fullDataset = getPremiumDataset(targetLang);
+              return fisherYatesShuffle(fullDataset.slice(0, 100)).map(item => ({ text: item.t, meaning: item.m }));
             }
           };
 
           const startCountdownProcedure = async () => {
-            initAudio();
-            stopBpmMusic();
-            
             setIsPlaying(false);
             setFallingWords([]);
             setGhosts([]);
@@ -326,7 +217,6 @@
                 clearInterval(timer);
                 setCountdown(null);
                 setIsPlaying(true);
-                startBpmMusic();
               } else {
                 setCountdown(count);
               }
@@ -335,53 +225,42 @@
 
           const gameOver = () => {
             setIsPlaying(false);
-            stopBpmMusic();
             alert(`게임 오버! 최종 점수: ${score}`);
           };
 
           const triggerMissionClear = () => {
             setIsPlaying(false);
-            stopBpmMusic();
-            playWinSound();
             alert(`🎉 MISSION CLEAR! 🎉\n성공적으로 20개의 단어를 파괴했습니다!`);
           };
 
           useEffect(() => {
             if (!isPlaying) return;
 
-            const spawnWord = async () => {
-              if (wordBufferRef.current.length < 5 && lang === 'KO' && !isLoading) {
-                const freshWords = await fetchRandomWords(lang);
-                wordBufferRef.current = [...wordBufferRef.current, ...freshWords];
-              }
-
-              if (wordBufferRef.current.length === 0) {
-                wordBufferRef.current = await fetchRandomWords(lang);
-              }
-
+            const spawnWord = () => {
+              if (wordBufferRef.current.length === 0) return;
               const nextItem = wordBufferRef.current.shift();
               if(!nextItem) return;
 
-              const randomX = Math.floor(Math.random() * 65) + 15;
+              const randomX = Math.floor(Math.random() * 60) + 20;
               setFallingWords((prev) => [
                 ...prev,
                 { id: Date.now() + Math.random(), text: nextItem.text, meaning: nextItem.meaning, x: randomX, y: 0 }
               ]);
             };
 
-            const spawnInterval = Math.max(1500, 5000 - level * 350);
+            const spawnInterval = Math.max(1600, 4500 - level * 400);
             spawnRef.current = setInterval(spawnWord, spawnInterval);
 
             return () => clearInterval(spawnRef.current);
-          }, [isPlaying, lang, level, isLoading]);
+          }, [isPlaying, lang, level]);
 
           useEffect(() => {
             if (!isPlaying) return;
 
             const updatePosition = () => {
               setFallingWords((prev) => {
-                const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.07 + level * 0.03) }));
-                const escaped = nextWords.filter((w) => w.y >= 92);
+                const nextWords = prev.map((w) => ({ ...w, y: w.y + (0.08 + level * 0.02) }));
+                const escaped = nextWords.filter((w) => w.y >= 90);
                 if (escaped.length > 0) {
                   setHp((currHp) => {
                     const updatedHp = currHp - escaped.length;
@@ -392,7 +271,7 @@
                     return updatedHp;
                   });
                 }
-                return nextWords.filter((w) => w.y < 92);
+                return nextWords.filter((w) => w.y < 90);
               });
               loopRef.current = requestAnimationFrame(updatePosition);
             };
@@ -401,10 +280,21 @@
             return () => cancelAnimationFrame(loopRef.current);
           }, [isPlaying, level]);
 
-          const handleKeyDown = (e) => {
-            if (e.key === 'Enter') {
-              if (e.nativeEvent.isComposing) return;
+          // 가상 키보드 입력 핸들러
+          const handleKeyPress = (key) => {
+            if (!isPlaying) return;
 
+            if (key === 'Delete') {
+              // 한국어 단어 패드 모드일 때는 전체 삭제, 낱자 모드일 때는 한 글자씩 삭제
+              if (lang === 'KO') {
+                setInputValue('');
+              } else {
+                setInputValue((prev) => prev.slice(0, -1));
+              }
+              return;
+            }
+
+            if (key === 'Enter') {
               const trimmedInput = inputValue.trim();
               const isMatch = (wText) => (lang === 'EN' || lang === 'ES') 
                 ? wText.toLowerCase() === trimmedInput.toLowerCase() 
@@ -424,7 +314,6 @@
                 }
 
                 setFallingWords((prev) => prev.filter((_, idx) => idx !== targetIndex));
-                playScoreSound();
                 setScore((prev) => prev + 10);
                 
                 const nextCount = clearCount + 1;
@@ -437,17 +326,15 @@
                 }
               }
               setInputValue('');
+              return;
             }
+
+            // 일반 글자 입력 (한국어 패드 모드는 단어 전체가 입력 영역으로 전달됨)
+            setInputValue((prev) => prev + key);
           };
 
-          useEffect(() => {
-            if (lang !== 'KO') {
-              getDailyUnlockedWords(lang);
-            }
-          }, [lang]);
-
           return (
-            <div style={styles.container} ref={containerRef}>
+            <div style={styles.container} className={isFullscreen ? "ios-fullscreen" : ""}>
               <div style={styles.header}>
                 <div>Lv. {level}</div>
                 <div style={styles.targetProgress}>🎯 미션: {clearCount} / 20</div>
@@ -462,7 +349,7 @@
                 {['KO', 'EN', 'JA', 'ES'].map((l) => (
                   <button
                     key={l}
-                    onClick={() => { if(!isLoading && countdown === null) { setLang(l); setIsPlaying(false); setFallingWords([]); setGhosts([]); stopBpmMusic(); } }}
+                    onClick={() => { if(countdown === null) { setLang(l); setIsPlaying(false); setFallingWords([]); setGhosts([]); setInputValue(''); } }}
                     style={{ ...styles.tabButton, backgroundColor: lang === l ? '#4A90E2' : '#E0E0E0' }}
                   >
                     {l}
@@ -470,11 +357,11 @@
                 ))}
               </div>
 
-              {lang !== 'KO' && (
-                <div style={styles.infoBanner}>
-                  📅 총 1,200개 무한 대형 데이터 풀 연동 완료 (현재 가용 해금치: <b>{unlockedCount}개 단어</b>)
-                </div>
-              )}
+              {/* 입력값 시각화 디스플레이 바 (시스템 키보드가 없으므로 필수) */}
+              <div style={styles.displayBar}>
+                <span style={styles.labelText}>입력창 : </span>
+                <span style={styles.displayValue}>{inputValue || "아래 자판을 터치하세요"}</span>
+              </div>
 
               <div style={styles.gameArea}>
                 {ghosts.map((ghost) => (
@@ -491,8 +378,8 @@
 
                 {!isPlaying && countdown === null && (
                   <div style={styles.centerOverlay}>
-                    <button onClick={startCountdownProcedure} disabled={isLoading} style={styles.startButton}>
-                      {isLoading ? "데이터 연동 중..." : `${lang} 미션 시작`}
+                    <button onClick={startCountdownProcedure} style={styles.startButton}>
+                      {lang} 미션 시작
                     </button>
                   </div>
                 )}
@@ -504,37 +391,44 @@
                 ))}
               </div>
 
-              <div style={styles.inputArea}>
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={isPlaying ? "단어를 입력하고 Enter!" : "대기 중..."}
-                  disabled={!isPlaying}
-                  style={styles.input}
-                  autoFocus
-                />
+              {/* 내장형 다국어 변동 가상 키보드 섹션 */}
+              <div className="virtual-keyboard">
+                {(KEYBOARD_LAYOUTS[lang] || KEYBOARD_LAYOUTS['EN']).map((row, rIdx) => (
+                  <div key={rIdx} className="keyboard-row">
+                    {row.map((key, kIdx) => {
+                      const isSpecial = key === 'Delete' || key === 'Enter';
+                      return (
+                        <button
+                          key={kIdx}
+                          className={`key-btn ${isSpecial ? 'wide' : ''} ${key === 'Enter' ? 'enter' : ''}`}
+                          onClick={() => handleKeyPress(key)}
+                        >
+                          {key === 'Delete' ? '⌫' : key}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
           );
         }
 
         const styles = {
-          container: { display: 'flex', flexDirection: 'column', width: '100vw', height: '100dvh', fontFamily: 'sans-serif', overflow: 'hidden' },
+          container: { display: 'flex', flexDirection: 'column', width: '100vw', height: '100dvh', fontFamily: 'sans-serif', overflow: 'hidden', backgroundColor: '#F5F7FA' },
           header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#2C3E50', color: '#FFF', fontSize: '14px', zIndex: 5 },
           targetProgress: { fontWeight: 'bold', color: '#F1C40F' },
-          fullscreenBtn: { border: 'none', backgroundColor: '#34495E', color: '#FFF', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' },
+          fullscreenBtn: { border: 'none', backgroundColor: '#34495E', color: '#FFF', padding: '4px 8px', borderRadius: '4px', fontSize: '11px' },
           langTabs: { display: 'flex', justifyContent: 'space-around', padding: '10px', backgroundColor: '#FFF', borderBottom: '1px solid #E2E8F0', zIndex: 5 },
-          tabButton: { padding: '8px 18px', border: 'none', borderRadius: '20px', color: '#FFF', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
-          infoBanner: { backgroundColor: '#E6F4EA', color: '#137333', textAlign: 'center', fontSize: '12px', padding: '6px', borderBottom: '1px solid #CEEAD6', fontWeight: '500' },
-          gameArea: { flex: 1, position: 'relative', backgroundColor: '#EBF8FF', overflow: 'hidden', borderBottom: '4px dashed #CBD5E0' },
+          tabButton: { padding: '8px 18px', border: 'none', borderRadius: '20px', color: '#FFF', fontWeight: 'bold', fontSize: '14px' },
+          displayBar: { backgroundColor: '#FFFFFF', padding: '12px', textAlign: 'center', borderBottom: '2px solid #E2E8F0', fontSize: '18px', fontWeight: 'bold' },
+          labelText: { color: '#718096', marginRight: '8px' },
+          displayValue: { color: '#4A90E2', borderBottom: '2px solid #4A90E2', padding: '0 8px', minWidth: '150px', display: 'inline-block' },
+          gameArea: { flex: 1, position: 'relative', backgroundColor: '#EBF8FF', overflow: 'hidden' },
           centerOverlay: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10, textAlign: 'center' },
-          startButton: { padding: '18px 45px', fontSize: '20px', backgroundColor: '#4A90E2', color: 'white', border: 'none', borderRadius: '50px', fontWeight: 'bold', boxShadow: '0 10px 20px rgba(74,144,226,0.4)', cursor: 'pointer' },
-          word: { position: 'absolute', padding: '6px 14px', backgroundColor: '#FFF', border: '2px solid #4A90E2', borderRadius: '20px', transform: 'translateX(-50%)', boxShadow: '0 4px 8px rgba(0,0,0,0.08)', zIndex: 6 },
-          wordText: { fontSize: '16px', fontWeight: 'bold', color: '#2D3748', whiteSpace: 'nowrap' },
-          inputArea: { padding: '15px', backgroundColor: '#FFF', borderTop: '1px solid #E2E8F0', zIndex: 5 },
-          input: { width: '100%', padding: '14px', fontSize: '16px', borderRadius: '8px', border: '2px solid #CBD5E0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }
+          startButton: { padding: '14px 40px', fontSize: '18px', backgroundColor: '#4A90E2', color: 'white', border: 'none', borderRadius: '50px', fontWeight: 'bold', boxShadow: '0 6px 15px rgba(74,144,226,0.3)' },
+          word: { position: 'absolute', padding: '6px 14px', backgroundColor: '#FFF', border: '2px solid #4A90E2', borderRadius: '20px', transform: 'translateX(-50%)', boxShadow: '0 4px 8px rgba(0,0,0,0.08)' },
+          wordText: { fontSize: '15px', fontWeight: 'bold', color: '#2D3748', whiteSpace: 'nowrap' }
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
